@@ -1248,6 +1248,12 @@ struct sched_rt_entity {
 #endif
 };
 
+/* @lfred - add for rr schedule 	*/
+/* may need or maybe not 		*/
+struct sched_rr_entity {
+	
+};
+
 /*
  * default timeslice is 100 msecs (used only for SCHED_RR tasks).
  * Timeslices get refilled after they expire.
@@ -1281,6 +1287,7 @@ struct task_struct {
 	const struct sched_class *sched_class;
 	struct sched_entity se;
 	struct sched_rt_entity rt;
+	struct sched_rr_entity rr;	/* @lfred: maybe not needed */ 
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	/* list of struct preempt_notifier: */
