@@ -1,4 +1,4 @@
-/* W4118 round robin scheduler */
+/* W4118 grouped round robin scheduler */
 
 #include "sched.h"
 #include <linux/slab.h>
@@ -6,8 +6,8 @@
 #define	PRINTK	printk
 
 /* TODO: @lfred init rq function */
-void init_rr_rq(struct rr_rq *rt_rq, struct rq *rq) {
-	PRINTK("init_rr_rq\n");
+void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {
+	PRINTK("init_grr_rq\n");
 }
 
 /*
@@ -16,9 +16,9 @@ void init_rr_rq(struct rr_rq *rt_rq, struct rq *rq) {
  * then put the task into the rbtree:
  */
 static void
-enqueue_task_rr(struct rq *rq, struct task_struct *p, int flags)
+enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("enqueue_task_rr\n");
+	PRINTK("enqueue_task_grr\n");
 #if 0
 	struct sched_rt_entity *rt_se = &p->rt;
 
@@ -40,9 +40,9 @@ enqueue_task_rr(struct rq *rq, struct task_struct *p, int flags)
  * update the fair scheduling stats:
  */
 static void
-dequeue_task_rr(struct rq *rq, struct task_struct *p, int flags)
+dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("dequeue_task_rr\n");
+	PRINTK("dequeue_task_grr\n");
 #if 0
 	raw_spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
@@ -52,20 +52,20 @@ dequeue_task_rr(struct rq *rq, struct task_struct *p, int flags)
 }
 
 /* @lfred: need to check when this will be called. */
-static void yield_task_rr(struct rq *rq)
+static void yield_task_grr(struct rq *rq)
 {
-	PRINTK("yield_task_rr\n");
+	PRINTK("yield_task_grr\n");
 #if 0
-	requeue_task_rr(rq, rq->curr, 0);
+	requeue_task_grr(rq, rq->curr, 0);
 #endif
 }
 
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_curr_rr(struct rq *rq, struct task_struct *p, int flags)
+static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("check_preempt_curr_rr\n");
+	PRINTK("check_preempt_curr_grr\n");
 #if 0
 	resched_task(rq->idle);
 #endif
@@ -76,9 +76,9 @@ static void check_preempt_curr_rr(struct rq *rq, struct task_struct *p, int flag
  * check pick_next_task @ core.c
  * always return NULL for now, and no RR tasks are scheduled.
  */
-static struct task_struct *pick_next_task_rr(struct rq *rq)
+static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
-	PRINTK("pick_next_task_rr\n");
+	PRINTK("pick_next_task_grr\n");
 	return NULL;
 
 
@@ -92,16 +92,16 @@ static struct task_struct *pick_next_task_rr(struct rq *rq)
 /*
  * Account for a descheduled task:
  */
-static void put_prev_task_rr(struct rq *rq, struct task_struct *prev)
+static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
-	PRINTK("put_prev_task_rr\n");
+	PRINTK("put_prev_task_grr\n");
 }
 
 /*
  * scheduler tick hitting a task of our scheduling class:
  * No print is permitted @ interrupt context or interrupt disabled.
  */
-static void task_tick_rr(struct rq *rq, struct task_struct *curr, int queued)
+static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 }
 
@@ -110,16 +110,16 @@ static void task_tick_rr(struct rq *rq, struct task_struct *curr, int queued)
  * This routine is mostly called to set cfs_rq->curr field when a task
  * migrates between groups/classes.
  */
-static void set_curr_task_rr(struct rq *rq)
+static void set_curr_task_grr(struct rq *rq)
 {
-	PRINTK("set_curr_task_rr\n");
+	PRINTK("set_curr_task_grr\n");
 }
 
 /*
  * We switched to the sched_rr class.
  * @lfred: this is MUST for testing. We need to allow the task to become a rr task.
  */
-static void switched_to_rr(struct rq *rq, struct task_struct *p)
+static void switched_to_grr(struct rq *rq, struct task_struct *p)
 {
 	return;
 }
@@ -130,36 +130,36 @@ static void switched_to_rr(struct rq *rq, struct task_struct *p)
  * @lfred: should we implement this ? return will be fine ?
  */
 static void
-prio_changed_rr(struct rq *rq, struct task_struct *p, int oldprio)
+prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
 {
 	return;
 }
 
-static unsigned int get_rr_interval_rr(struct rq *rq, struct task_struct *task)
+static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 {
-	PRINTK("get_rr_interval_rr\n");
+	PRINTK("get_rr_interval_grr\n");
 	return 0;
 }
 
 /*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
-const struct sched_class rr_sched_class = {
+const struct sched_class grr_sched_class = {
 	
 	.next			= &fair_sched_class,
 	
-	.enqueue_task		= enqueue_task_rr,
-	.dequeue_task		= dequeue_task_rr,
-	.yield_task		= yield_task_rr,
+	.enqueue_task		= enqueue_task_grr,
+	.dequeue_task		= dequeue_task_grr,
+	.yield_task		= yield_task_grr,
 	/* .yield_to_task		= yield_to_task_fair, */
 
-	.check_preempt_curr	= check_preempt_curr_rr,
+	.check_preempt_curr	= check_preempt_curr_grr,
 
-	.pick_next_task		= pick_next_task_rr,
-	.put_prev_task		= put_prev_task_rr,
+	.pick_next_task		= pick_next_task_grr,
+	.put_prev_task		= put_prev_task_grr,
 
 #ifdef CONFIG_SMP
-	.select_task_rq		= select_task_rq_rr,
+	.select_task_rq		= select_task_rq_grr,
 	
 #if 0
 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
@@ -174,15 +174,15 @@ const struct sched_class rr_sched_class = {
 #endif
 #endif
 
-	.set_curr_task          = set_curr_task_rr,
-	.task_tick		= task_tick_rr,
+	.set_curr_task          = set_curr_task_grr,
+	.task_tick		= task_tick_grr,
 	/* void (*task_fork) (struct task_struct *p); */
 
 	/* void (*switched_from) (struct rq *this_rq, struct task_struct *task); */
-	.switched_to		= switched_to_rr,
+	.switched_to		= switched_to_grr,
 	
-	.prio_changed		= prio_changed_rr,
-	.get_rr_interval	= get_rr_interval_rr,
+	.prio_changed		= prio_changed_grr,
+	.get_rr_interval	= get_rr_interval_grr,
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */

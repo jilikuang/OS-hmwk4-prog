@@ -278,8 +278,8 @@ static inline int rt_bandwidth_enabled(void)
 	return sysctl_sched_rt_runtime >= 0;
 }
 
-/* @lfred: round robin's run queue */
-struct rr_rq {
+/* @lfred: gropued round robin's run queue */
+struct grr_rq {
 	struct rq *rq;
 };
 
@@ -377,7 +377,7 @@ struct rq {
 
 	struct cfs_rq cfs;
 	struct rt_rq rt;
-	struct rr_rq rr;
+	struct grr_rq grr;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -862,7 +862,7 @@ enum cpuacct_stat_index {
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class rt_sched_class;
 extern const struct sched_class fair_sched_class;
-extern const struct sched_class rr_sched_class;
+extern const struct sched_class grr_sched_class;
 extern const struct sched_class idle_sched_class;
 
 
@@ -1162,7 +1162,7 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
-extern void init_rr_rq(struct rr_rq *rt_rq, struct rq *rq);
+extern void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq);
 extern void unthrottle_offline_cfs_rqs(struct rq *rq);
 
 extern void account_cfs_bandwidth_used(int enabled, int was_enabled);

@@ -1251,10 +1251,10 @@ struct sched_rt_entity {
 #endif
 };
 
-/* @lfred - add for rr schedule 	*/
+/* @lfred - add for grr schedule 	*/
 /* may need or maybe not 		*/
-struct sched_rr_entity {
-	
+struct sched_grr_entity {
+
 };
 
 /*
@@ -1290,7 +1290,7 @@ struct task_struct {
 	const struct sched_class *sched_class;
 	struct sched_entity se;
 	struct sched_rt_entity rt;
-	struct sched_rr_entity rr;	/* @lfred: maybe not needed */ 
+	struct sched_grr_entity grr;	/* @lfred: maybe not needed */
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	/* list of struct preempt_notifier: */
