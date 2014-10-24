@@ -3,7 +3,11 @@
 #include "sched.h"
 #include <linux/slab.h>
 
+/*****************************************************************************/
 #define	PRINTK	printk
+#define TIME_SLICE 		100
+#define LOAD_BALANCE_TIME 	500
+/*****************************************************************************/
 
 /* TODO: @lfred init rq function */
 void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {

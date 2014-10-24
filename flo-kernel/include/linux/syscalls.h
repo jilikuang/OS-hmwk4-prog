@@ -858,4 +858,7 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
 				      unsigned long riovcnt,
 				      unsigned long flags);
 
+/* @lfred: syscall for hw4 */
+asmlinkage long sys_ched_set_CPUgroup(int numCPU, int group);
+
 #endif
