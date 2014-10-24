@@ -4,6 +4,9 @@
 
 #include <linux/syscalls.h>
 
+#define FOREGROUND 1
+#define BACKGROUND 2
+
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
 	return 0;
