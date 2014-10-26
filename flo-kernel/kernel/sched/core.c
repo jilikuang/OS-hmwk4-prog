@@ -4860,6 +4860,27 @@ out_unlock:
 	return retval;
 }
 
+/*
+ * SYSCALL defined for HW 4
+ */
+
+#define FOREGROUND 1
+#define BACKGROUND 2
+
+SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
+{
+	long retval = 0;
+#ifdef CONFIG_SMP
+	PRINTK("sched_set_CPUgroup: %d %d\n", numCPU, group);
+	if (numCPU < 1 || numCPU >= nr_cpu_ids)
+		return -EINVAL;
+
+	if (!(group == FOREGROUND || group == BACKGROUND))
+		return -EINVAL;
+#endif
+	return retval;
+}
+
 static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
 
 void sched_show_task(struct task_struct *p)
