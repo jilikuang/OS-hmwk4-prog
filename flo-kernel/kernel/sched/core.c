@@ -6937,6 +6937,9 @@ void __init sched_init(void)
 #ifdef CONFIG_RT_GROUP_SCHED
 	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
+/* END */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 	alloc_size += num_possible_cpus() * cpumask_size();
 #endif
@@ -6959,6 +6962,13 @@ void __init sched_init(void)
 		ptr += nr_cpu_ids * sizeof(void **);
 
 #endif /* CONFIG_RT_GROUP_SCHED */
+/* CONFIG_GRR_GROUP_SCHED */
+		root_task_group.grr_se = (struct sched_grr_entity **)ptr;
+		ptr += nr_cpu_ids * sizeof(void **);
+
+		root_task_group.grr_rq = (struct grr_rq **)ptr;
+		ptr += nr_cpu_ids * sizeof(void **);
+/* END */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 		for_each_possible_cpu(i) {
 			per_cpu(load_balance_tmpmask, i) = (void *)ptr;

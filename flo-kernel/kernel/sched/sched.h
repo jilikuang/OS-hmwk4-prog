@@ -123,6 +123,11 @@ struct task_group {
 	struct rt_bandwidth rt_bandwidth;
 #endif
 
+/* CONFIG_GRR_GROUP_SCHED */
+	struct sched_grr_entity **grr_se;
+	struct grr_rq **grr_rq;
+/* END */
+
 	struct rcu_head rcu;
 	struct list_head list;
 
