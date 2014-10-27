@@ -55,7 +55,12 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 #endif
 }
 
-/* @lfred: need to check when this will be called. */
+/* 
+ * @lfred: This will be called when yield_sched is called
+ * That is, the current task should be preempted and put
+ * in the end of rq. If there is no more task, maybe we
+ * should keep the calling task to run.
+ */
 static void yield_task_grr(struct rq *rq)
 {
 	PRINTK("yield_task_grr\n");
@@ -104,6 +109,14 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 /*
  * scheduler tick hitting a task of our scheduling class:
  * No print is permitted @ interrupt context or interrupt disabled.
+ *
+ * Job:
+ *	1. Update the time slice of the runningt task.
+ *	2. Update statistics information (check update_curr_rt)
+ *
+ * Note:
+ * 	rq->lock is acquired before calling the functions.
+ * 	interrupts are disables when calling this.
  */
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
