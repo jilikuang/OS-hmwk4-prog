@@ -9,6 +9,25 @@
 #define LOAD_BALANCE_TIME 	500
 /*****************************************************************************/
 
+/* Utility functions */
+static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
+{
+	return container_of(grr_se, struct task_struct, grr);
+}
+
+static inline struct rq *rq_of_grr_rq(struct grr_rq *grr_rq)
+{
+	return container_of(grr_rq, struct rq, grr);
+}
+
+static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
+{
+	struct task_struct *p = task_of_se(grr_se);
+	struct rq *rq = task_rq(p);
+
+	return &rq->grr;
+}
+
 /* TODO: @lfred init rq function */
 void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {
 	PRINTK("init_grr_rq\n");
