@@ -285,6 +285,9 @@ static inline int rt_bandwidth_enabled(void)
 
 /* @lfred: gropued round robin's run queue */
 struct grr_rq {
+	unsigned long nr_running;
+	/* Run queue head of GRR entity */
+	struct list_head run_queue;
 	struct rq *rq;
 };
 

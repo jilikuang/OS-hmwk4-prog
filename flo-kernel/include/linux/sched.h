@@ -1261,6 +1261,8 @@ struct sched_rt_entity {
 /* may need or maybe not 		*/
 struct sched_grr_entity {
 	unsigned int time_slice;
+	/* Queue node connected by run quene in GRR rq */
+	struct list_head queue;
 };
 
 /* Default time slice for GRR is 100 msecs */

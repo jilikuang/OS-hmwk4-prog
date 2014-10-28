@@ -29,8 +29,11 @@ static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
 }
 
 /* TODO: @lfred init rq function */
-void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {
+void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq) {
 	PRINTK("init_grr_rq\n");
+	grr_rq->nr_running = 0;
+	INIT_LIST_HEAD(&grr_rq->run_queue);
+	grr_rq->rq = rq;
 }
 
 /*
