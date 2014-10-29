@@ -230,7 +230,6 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void set_curr_task_grr(struct rq *rq)
 {
-	PRINTK("set_curr_task_grr\n");
 }
 
 /*
