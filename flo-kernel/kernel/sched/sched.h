@@ -55,6 +55,11 @@ static inline int task_has_rt_policy(struct task_struct *p)
 	return rt_policy(p->policy);
 }
 
+static inline int grr_policy(int policy)
+{
+	return (policy == SCHED_GRR) ? 1 : 0;
+}
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */
