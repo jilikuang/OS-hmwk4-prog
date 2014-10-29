@@ -1,15 +1,14 @@
 /* W4118 grouped round robin scheduler */
-
 /* Includes */
-
+/*****************************************************************************/
 #include "sched.h"
 #include <linux/slab.h>
 
 /* Defines */
 /*****************************************************************************/
 #define	PRINTK	printk
-#define TIME_SLICE 		100
-#define LOAD_BALANCE_TIME 	500
+#define M_GRR_TIME_SLICE 	100
+#define M_GRR_LOAD_BALANCE_TIME 500
 
 /* Utility functions */
 /*****************************************************************************/
@@ -60,10 +59,13 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	/* init time slice */
 	p->grr.time_slice = GRR_TIMESLICE;
 	
-	INIT_LIST_HEAD(&(p->grr.m_rq_list));	
+	INIT_LIST_HEAD(&(p->grr.m_rq_list));
+
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
-	
+	rq->grr.m_nr_running++;	
+
 	raw_spin_unlock_irq(p_lock);
+	
 	inc_nr_running(rq);	
 }
 
@@ -80,6 +82,7 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	raw_spin_lock_irq(p_lock);
 
 	list_del(&(p->grr.m_rq_list));
+	rq->grr.m_nr_running--;	
 
 	raw_spin_unlock_irq(p_lock);
 	
@@ -126,13 +129,19 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	if (!rq->nr_running)
 		return NULL;
-	
-	ent = list_first_entry(
-		&(rq->grr.m_task_q), 
-		struct sched_grr_entity, 
-		m_rq_list);   
 
-	p = task_of_se(ent);
+	raw_spin_lock_irq(p_lock);
+	
+	if (rq->grr.m_nr_running != 0) {	
+
+		ent = list_first_entry(
+			&(rq->grr.m_task_q), 
+			struct sched_grr_entity, 
+			m_rq_list);   
+		p = task_of_se(ent);
+	}
+
+	raw_spin_unlock_irq(p_lock);
 
 	return p; 
 #else	
@@ -144,10 +153,18 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 /*
  * Account for a descheduled task:
+ *	When the current task is about to be moved out from
+ *	CPU, this function will be called to allow the scheduler to
+ *	update the data structure.
  */
 static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
-	PRINTK("put_prev_task_grr\n");
+	raw_spin_lock_irq(p_lock);
+	
+	list_del(&(p->grr.m_rq_list));
+	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+	
+	raw_spin_lock_irq(p_lock);
 }
 
 /*
@@ -175,14 +192,24 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 	}
 	*/
 
-	if (--grr_se->time_slice)
+	/* @lfred:
+		not sure if there is a chance that tick twice 
+		before you schedule. We take it conservatively.
+	*/
+	if (grr_se->time_slice != 0) 
+		grr_se->time_slice--;
 		return;
-
+	}
+		
+	/* the running task is expired. */
 	/* reset the time slice variable */
 	grr_se->time_slice = GRR_TIMESLICE;
 
-	/* Time up for the current entity */
+	/* @lfred: 
+	 * 	it can be a problem - how to sync among CPUs ? 
+	 */
 	if (rq->grr.m_nr_running > 1) {
+		/* Time up for the current entity */
 		/* put the current task to the end of the list */
 		list_del(&(curr->grr.m_rq_list));
 		list_add_tail(&(curr->grr.m_rq_list), &(rq->grr.m_task_q));
