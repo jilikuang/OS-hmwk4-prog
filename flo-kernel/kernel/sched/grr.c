@@ -1,7 +1,7 @@
 /* W4118 grouped round robin scheduler */
 
 /* Includes */
-/*****************************************************************************/
+
 #include "sched.h"
 #include <linux/slab.h>
 
@@ -57,6 +57,9 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
 	raw_spin_lock_irq(p_lock);
+
+	/* init time slice */
+	p->grr.time_slice = GRR_TIMESLICE;
 	
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));	
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
@@ -137,7 +140,6 @@ static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int fla
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
 #if 1
-
 	struct sched_grr_entity* ent = NULL;
 	struct task_struct *p = NULL;
 
@@ -195,9 +197,19 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 	if (--grr_se->time_slice)
 		return;
 
+	/* reset the time slice variable */
 	grr_se->time_slice = GRR_TIMESLICE;
 
 	/* Time up for the current entity */
+	if (rq->grr.m_nr_running > 1) {
+		/* put the current task to the end of the list */
+		list_del(&(curr->grr.m_rq_list));
+		list_add_tail(&(curr->grr.m_rq_list), &(rq->grr.m_task_q));
+		set_tsk_need_resched(curr);
+	} else {
+		/* doing nothing - if only one task, we should just run*/
+		return;
+	}
 }
 
 /* Account for a task changing its policy or group.
