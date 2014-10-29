@@ -293,7 +293,7 @@ static inline int rt_bandwidth_enabled(void)
 struct grr_rq {
 	struct rq *mp_rq;		/* the rq it belongs to */
 	unsigned long m_nr_running;	/* the nr of running tasks in this q */
-
+	unsigned long m_rebalance_cnt;  /* the nr of rebalance count for this q */	
 	struct list_head m_task_q;	/* the queue */
 	
 	raw_spinlock_t m_runtime_lock;	/* the lock, used inside the rq lock */

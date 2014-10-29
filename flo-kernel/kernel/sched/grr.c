@@ -40,6 +40,7 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 {
 	grr_rq->mp_rq = rq;
 	grr_rq->m_nr_running = 0;
+	grr_rq->m_rebalance_cnt = 0;
 	INIT_LIST_HEAD(&grr_rq->m_task_q);
 	raw_spin_lock_init(&grr_rq->m_runtime_lock);
 }
@@ -126,6 +127,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 #if 1
 	struct sched_grr_entity* ent = NULL;
 	struct task_struct *p = NULL;
+	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
 	if (!rq->nr_running)
 		return NULL;
@@ -159,10 +161,12 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
  */
 static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
+	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
+
 	raw_spin_lock_irq(p_lock);
 	
-	list_del(&(p->grr.m_rq_list));
-	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+	list_del(&(prev->grr.m_rq_list));
+	list_add_tail(&(prev->grr.m_rq_list), &(rq->grr.m_task_q));
 	
 	raw_spin_lock_irq(p_lock);
 }
@@ -181,29 +185,28 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
  */
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	struct sched_grr_entity *grr_se = &curr->grr;
+	struct sched_grr_entity *se = &curr->grr;
 
 	/* Update statistics */
-
-	/*
-	if (--rebalance_cnt) {
-		"set flag for rebalanceing"
-		rebalance_cnt = GRR_REBALANCE;
+	if (--rq->grr.m_rebalance_cnt) {
+		if(rq->grr.m_rebalance_cnt == 0){
+			/* "set flag for rebalanceing */
+			rq->grr.m_rebalance_cnt = GRR_REBALANCE;
+		}
 	}
-	*/
-
+	
 	/* @lfred:
 		not sure if there is a chance that tick twice 
 		before you schedule. We take it conservatively.
 	*/
-	if (grr_se->time_slice != 0) 
-		grr_se->time_slice--;
+	if (se->time_slice != 0) { 
+		se->time_slice--;
 		return;
 	}
 		
 	/* the running task is expired. */
 	/* reset the time slice variable */
-	grr_se->time_slice = GRR_TIMESLICE;
+	se->time_slice = GRR_TIMESLICE;
 
 	/* @lfred: 
 	 * 	it can be a problem - how to sync among CPUs ? 
@@ -303,3 +306,4 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
+
