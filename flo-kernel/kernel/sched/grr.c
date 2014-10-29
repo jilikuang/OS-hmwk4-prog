@@ -3,13 +3,14 @@
 #include "sched.h"
 #include <linux/slab.h>
 
+/* Defines */
 /*****************************************************************************/
 #define	PRINTK	printk
 #define TIME_SLICE 		100
 #define LOAD_BALANCE_TIME 	500
-/*****************************************************************************/
 
 /* Utility functions */
+/*****************************************************************************/
 static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
 {
 	return container_of(grr_se, struct task_struct, grr);
@@ -28,6 +29,8 @@ static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
 	return &rq->grr;
 }
 
+/* REAL thing here */
+/*****************************************************************************/
 /* TODO: @lfred init rq function 
  *	For each cpu, it will be called once. Thus, the rq is a PER_CPU data 
  *	structure.
@@ -49,10 +52,15 @@ static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 #if 1
-	INIT_LIST_HEAD(&(p->grr.m_rq_list));
+	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
-	/* @lfred: need to enable */
-	//inc_nr_running(rq);	
+	raw_spin_lock_irq(p_lock);
+	
+	INIT_LIST_HEAD(&(p->grr.m_rq_list));	
+	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+	
+	raw_spin_unlock_irq(p_lock);
+	inc_nr_running(rq);	
 #else
 	struct sched_rt_entity *rt_se = &p->rt;
 
@@ -76,8 +84,17 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("dequeue_task_grr\n");
-#if 0
+#if 1
+	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
+	
+	raw_spin_lock_irq(p_lock);
+
+	list_del(&(p->grr.m_rq_list));
+
+	raw_spin_unlock_irq(p_lock);
+	
+	dec_nr_running(rq);
+#else
 	raw_spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
 	dump_stack();
