@@ -125,8 +125,9 @@ struct task_group {
 
 /* CONFIG_GRR_GROUP_SCHED */
 	struct sched_grr_entity **grr_se;
-	struct grr_rq **grr_rq;
 /* END */
+	/* @lfred */
+	struct grr_rq **grr_rq;
 
 	struct rcu_head rcu;
 	struct list_head list;
@@ -283,9 +284,19 @@ static inline int rt_bandwidth_enabled(void)
 	return sysctl_sched_rt_runtime >= 0;
 }
 
-/* @lfred: gropued round robin's run queue */
+/* @lfred: 	
+ *	gropued round robin's run queue 
+ *	This structure is a per-cpu structure.
+ *	When you want to do cross-cpu load balancing, you may want
+ *	to use the spinlock to synchronize the data.
+ */
 struct grr_rq {
-	struct rq *rq;
+	struct rq *mp_rq;		/* the rq it belongs to */
+	unsigned long m_nr_running;	/* the nr of running tasks in this q */
+
+	struct list_head m_task_q;	/* the queue */
+	
+	raw_spinlock_t m_runtime_lock;	/* the lock, used inside the rq lock */
 };
 
 /* Real-Time classes' related field in a runqueue: */

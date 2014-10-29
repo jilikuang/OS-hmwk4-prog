@@ -9,9 +9,16 @@
 #define LOAD_BALANCE_TIME 	500
 /*****************************************************************************/
 
-/* TODO: @lfred init rq function */
-void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {
-	PRINTK("init_grr_rq\n");
+/* TODO: @lfred init rq function 
+ *	For each cpu, it will be called once. Thus, the rq is a PER_CPU data 
+ *	structure.
+ */
+void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq) 
+{
+	grr_rq->mp_rq = rq;
+	grr_rq->m_nr_running = 0;
+	INIT_LIST_HEAD(&grr_rq->m_task_q);
+	raw_spin_lock_init(&grr_rq->m_runtime_lock);
 }
 
 /*
@@ -22,8 +29,12 @@ void init_grr_rq(struct grr_rq *rt_rq, struct rq *rq) {
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("enqueue_task_grr\n");
-#if 0
+#if 1
+	INIT_LIST_HEAD(&(p->grr.m_rq_list));
+
+	/* @lfred: need to enable */
+	//inc_nr_running(rq);	
+#else
 	struct sched_rt_entity *rt_se = &p->rt;
 
 	if (flags & ENQUEUE_WAKEUP)

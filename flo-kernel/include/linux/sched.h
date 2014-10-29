@@ -1254,7 +1254,7 @@ struct sched_rt_entity {
 /* @lfred - add for grr schedule 	*/
 /* may need or maybe not 		*/
 struct sched_grr_entity {
-
+	struct list_head m_rq_list;
 };
 
 /*
