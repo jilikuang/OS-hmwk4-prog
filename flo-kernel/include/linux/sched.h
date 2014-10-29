@@ -1251,17 +1251,24 @@ struct sched_rt_entity {
 #endif
 };
 
-/* @lfred - add for grr schedule 	*/
-/* may need or maybe not 		*/
-struct sched_grr_entity {
-	struct list_head m_rq_list;
-};
-
 /*
  * default timeslice is 100 msecs (used only for SCHED_RR tasks).
  * Timeslices get refilled after they expire.
  */
 #define RR_TIMESLICE		(100 * HZ / 1000)
+
+/*****************************************************************************/
+/* Default time slice for GRR is 100 msecs */
+#define GRR_TIMESLICE	(100 * HZ / 1000)
+#define GRR_REBALANCE	(500 * HZ / 1000)
+
+/* @lfred - add for grr schedule 	*/
+/* may need or maybe not 		*/
+struct sched_grr_entity {
+	unsigned int time_slice;
+	struct list_head m_rq_list;
+};
+/*****************************************************************************/
 
 struct rcu_node;
 

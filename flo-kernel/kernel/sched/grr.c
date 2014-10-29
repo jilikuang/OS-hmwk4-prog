@@ -9,6 +9,25 @@
 #define LOAD_BALANCE_TIME 	500
 /*****************************************************************************/
 
+/* Utility functions */
+static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
+{
+	return container_of(grr_se, struct task_struct, grr);
+}
+
+static inline struct rq *rq_of_grr_rq(struct grr_rq *grr_rq)
+{
+	return container_of(grr_rq, struct rq, grr);
+}
+
+static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
+{
+	struct task_struct *p = task_of_se(grr_se);
+	struct rq *rq = task_rq(p);
+
+	return &rq->grr;
+}
+
 /* TODO: @lfred init rq function 
  *	For each cpu, it will be called once. Thus, the rq is a PER_CPU data 
  *	structure.
@@ -131,6 +150,23 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
  */
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
+	struct sched_grr_entity *grr_se = &curr->grr;
+
+	/* Update statistics */
+
+	/*
+	if (--rebalance_cnt) {
+		"set flag for rebalanceing"
+		rebalance_cnt = GRR_REBALANCE;
+	}
+	*/
+
+	if (--grr_se->time_slice)
+		return;
+
+	grr_se->time_slice = GRR_TIMESLICE;
+
+	/* Time up for the current entity */
 }
 
 /* Account for a task changing its policy or group.
