@@ -33,7 +33,7 @@ static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
 
 /* REAL thing here */
 /*****************************************************************************/
-/* TODO: @lfred init rq function 
+/* init func: 
  *	For each cpu, it will be called once. Thus, the rq is a PER_CPU data 
  *	structure.
  */
@@ -53,7 +53,6 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-#if 1
 	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
 	raw_spin_lock_irq(p_lock);
@@ -66,19 +65,6 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	
 	raw_spin_unlock_irq(p_lock);
 	inc_nr_running(rq);	
-#else
-	struct sched_rt_entity *rt_se = &p->rt;
-
-	if (flags & ENQUEUE_WAKEUP)
-		rt_se->timeout = 0;
-
-	enqueue_rt_entity(rt_se, flags & ENQUEUE_HEAD);
-
-	if (!task_current(rq, p) && p->rt.nr_cpus_allowed > 1)
-		enqueue_pushable_task(rq, p);
-
-	inc_nr_running(rq);
-#endif
 }
 
 /*
@@ -89,7 +75,6 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-#if 1
 	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
 	
 	raw_spin_lock_irq(p_lock);
@@ -99,12 +84,6 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	raw_spin_unlock_irq(p_lock);
 	
 	dec_nr_running(rq);
-#else
-	raw_spin_unlock_irq(&rq->lock);
-	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
-	dump_stack();
-	raw_spin_lock_irq(&rq->lock);
-#endif
 }
 
 /* 
@@ -136,6 +115,8 @@ static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int fla
  * return the next task to run: select a task in my run queue if there is any
  * check pick_next_task @ core.c
  * always return NULL for now, and no RR tasks are scheduled.
+ *
+ * Load Balancing: reference 'calc_load_account_idle'
  */
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
@@ -223,7 +204,7 @@ static void set_curr_task_grr(struct rq *rq)
 }
 
 /*
- * We switched to the sched_rr class.
+ * We switched to the sched_grr class.
  * @lfred: this is MUST for testing. We need to allow the task to become a rr task.
  */
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
