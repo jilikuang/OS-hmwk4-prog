@@ -1,5 +1,7 @@
 /* W4118 grouped round robin scheduler */
 
+/* Includes */
+/*****************************************************************************/
 #include "sched.h"
 #include <linux/slab.h>
 
@@ -134,11 +136,23 @@ static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int fla
  */
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
-	PRINTK("pick_next_task_grr\n");
-	return NULL;
+#if 1
 
+	struct sched_grr_entity* ent = NULL;
+	struct task_struct *p = NULL;
 
-#if 0	
+	if (!rq->nr_running)
+		return NULL;
+	
+	ent = list_first_entry(
+		&(rq->grr.m_task_q), 
+		struct sched_grr_entity, 
+		m_rq_list);   
+
+	p = task_of_se(ent);
+
+	return p; 
+#else	
 	schedstat_inc(rq, sched_goidle);
 	calc_load_account_idle(rq);
 	return rq->idle;
