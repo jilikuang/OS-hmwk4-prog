@@ -332,25 +332,30 @@ static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 * Whenever, it is time to do load balance, this function will be called.
 * The fuction will get the busiest queue's next eligble task,
 * and put it into least busiest queue.
-* Bo: Ignore idle CPU to steal task from other CPU. 
-*	Ignore the group concept at this point.
+* Bo: 
+* Ignore idle CPU to steal task from other CPU. 
+* Ignore group concept.
 */
+DEFINE_PER_CPU(cpumask_var_t, load_balance_tmpmask);
+
 static int grr_load_balance(struct rq *this_rq)
 {
         struct rq *busiest_rq;
         struct rq *target_rq;
+		struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
+		cpumask_copy(cpus, cpu_active_mask);
 
         BOOL is_task_moved = M_FALSE;
 
         grr_lock(&this_rq->grr);
 
         /* get least and most busiest queue 
-        busiest_rq = grr_find_busiest_queue();
-        */
+        busiest_rq = grr_find_busiest_queue(cpus);
+		*/
         if (!(busiest_rq == this_rq))
                 goto __do_nothing;
 
-        /* target_rq = grr_find_least_busiest_queue(); */
+        /* target_rq = grr_find_least_busiest_queue(cpus); */
 
         /* make sure load balance will not reverse */
         if(busiest_rq->grr.m_nr_running > 1 && 
@@ -377,29 +382,68 @@ __do_nothing:
 
 /*
 * Get the queue with the highest total number of tasks
-* Bo: Need to consider within a group later
+* Bo: Need to consider find queue only within a group later
 */
-static struct rq* grr_find_busiest_queue() 
+static struct rq* grr_find_busiest_queue(const struct cpumask *cpus)
 {
-	struct rq *busiest_rq = NULL;
-#if 0	
-	grr_lock(&busiest_rq->grr);
-	grr_unlock(&busiest_rq->grr);
+	struct rq *busiest = NULL;
+	struct rq *rq;
+	unsigned long max_load = 0;
+	int i;
+
+#if 0
+    /* case for handle group */
+#else
+
+	for_each_cpu(i, cpus) {
+		unsigned long curr_load;
+
+		if (!cpumask_test_cpu(i, cpus))
+			continue;
+
+		rq = cpu_rq(i);
+		curr_load = rq->grr.m_nr_running;
+
+		if (curr_load > max_load) {
+			max_load = curr_load;
+			busiest = rq;
+		}
+	}
 #endif
-	return busiest_rq;
+	return busiest;
 }
 
 /*
 * Get the queue with the lowest total number of tasks
-* Bo: Need to consider within a group later
+* Bo: Need to consider find queue only within a group later
 */
-static struct rq* grr_find_lest_busiest_queue(){
-    struct rq *target_rq;
-    grr_lock(&target_rq->grr);
+static struct rq* grr_find_lest_busiest_queue(const struct cpumask *cpus){
+	struct rq *busiest = NULL;
+	struct rq *rq;
+	unsigned long min_load = 0;
+	int i;
 
-    return target_rq;
+#if 0
+    /* case for handle group */
+#else
+
+	for_each_cpu(i, cpus) {
+		unsigned long curr_load;
+
+		if (!cpumask_test_cpu(i, cpus))
+			continue;
+
+		rq = cpu_rq(i);
+		curr_load = rq->grr.m_nr_running;
+
+		if (curr_load < min_load) {
+			min_load = curr_load;
+			busiest = rq;
+		}
+	}
+#endif
+	return busiest;
 }
-
 /*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
@@ -447,6 +491,3 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
-
-
-
