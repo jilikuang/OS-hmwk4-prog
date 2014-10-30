@@ -302,6 +302,10 @@ struct grr_rq {
 	struct list_head m_task_q;	/* the queue */
 	
 	raw_spinlock_t m_runtime_lock;	/* the lock, used inside the rq lock */
+
+	/* various flags */
+	int	m_need_resched;
+	int	m_need_balance;
 };
 
 /* Real-Time classes' related field in a runqueue: */

@@ -10,6 +10,10 @@
 #define M_GRR_TIME_SLICE 	100
 #define M_GRR_LOAD_BALANCE_TIME 500
 
+#define BOOL	int
+#define	M_TRUE	1
+#define M_FALSE	0
+
 /* Utility functions */
 /*****************************************************************************/
 static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
@@ -28,6 +32,12 @@ static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
 	struct rq *rq = task_rq(p);
 
 	return &rq->grr;
+}
+
+static void grr_reset_se(struct sched_grr_entity *grr_se)
+{
+	grr_se->m_time_slice = M_GRR_TIMESLICE;
+	grr_se->m_is_timeup = M_FALSE;
 }
 
 /* REAL thing here */
@@ -55,13 +65,11 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
-	raw_spin_lock_irq(p_lock);
-
-	/* init time slice */
-	p->grr.time_slice = GRR_TIMESLICE;
-	
+	grr_reset_se(&(p->grr));
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));
 
+	raw_spin_lock_irq(p_lock);
+	
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
 	rq->grr.m_nr_running++;	
 
@@ -98,8 +106,18 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void yield_task_grr(struct rq *rq)
 {
-	PRINTK("yield_task_grr\n");
-#if 0
+	//struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
+
+#if 1
+	/* if the current task is my, put it in the end of queue */
+	if (rq->grr.m_nr_running != 1) {
+	#if 0
+		raw_spin_lock(p_lock);	
+		list_del(&(rq->curr->grr.m_task_list));
+		list_add_tail(	
+	#endif
+	}	
+#else
 	requeue_task_grr(rq, rq->curr, 0);
 #endif
 }
@@ -107,44 +125,60 @@ static void yield_task_grr(struct rq *rq)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
+static void 
+check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	PRINTK("check_preempt_curr_grr\n");
 #if 0
-	resched_task(rq->idle);
+	if (	rq->curr->sched_class != &grr_sched_class && 
+		p->sched_class == &grr_sched_class)
+		resched_task(p);
 #endif
 }
 
 /*
  * return the next task to run: select a task in my run queue if there is any
  * check pick_next_task @ core.c
- * always return NULL for now, and no RR tasks are scheduled.
  *
  * Load Balancing: reference 'calc_load_account_idle'
  */
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
 #if 1
-	struct sched_grr_entity* ent = NULL;
 	struct task_struct *p = NULL;
 	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
+
+	/* handle the case when rebalance is on */
+	if (rq->grr.m_need_balance) {
+		rq->grr.m_need_balance = M_FALSE;	
+	}
 
 	if (!rq->nr_running)
 		return NULL;
 
 	raw_spin_lock_irq(p_lock);
-	
-	if (rq->grr.m_nr_running != 0) {	
 
-		ent = list_first_entry(
-			&(rq->grr.m_task_q), 
-			struct sched_grr_entity, 
-			m_rq_list);   
-		p = task_of_se(ent);
+	p = rq->curr;
+	
+	if (rq->grr.m_nr_running > 0) {	
+
+		/* when the timer interrupt says -> your time is up! */
+		if (p->sched_class == &grr_sched_class && p->grr.m_is_timeup) {			
+			list_del(&(p->grr.m_rq_list));
+			list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+		}
+
+		/* pick up the 1st one in the RQ */
+		p = task_of_se(
+			list_first_entry(
+				&(rq->grr.m_task_q), 
+				struct sched_grr_entity, 
+				m_rq_list));   
+	
+		/* reset the running vars */	
+		grr_reset_se(&(p->grr));
 	}
 
 	raw_spin_unlock_irq(p_lock);
-
 	return p; 
 #else	
 	schedstat_inc(rq, sched_goidle);
@@ -162,23 +196,29 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
 	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
+	struct list_head *taskq = &(rq->grr.m_task_q);
+	struct list_head *t = &(prev->grr.m_rq_list);
 	struct list_head *pos = NULL;
-
 	/* just return if this is not my job */
 	if (prev->sched_class != &grr_sched_class)
 		return;
 	
 	raw_spin_lock_irq(p_lock);
 
-	/* traverse the list and try to find the task */
-	list_for_each(pos, &(rq->grr.m_task_q)) {
-		if (pos == &(prev->grr.m_rq_list)) {
-			list_del(&(prev->grr.m_rq_list));
-			list_add_tail(&(prev->grr.m_rq_list), &(rq->grr.m_task_q));
+	/* 
+		traverse the list and try to find the task
+	  	The problem here is that the prev task may not be the one 
+		handled by GRR policy
+	*/
+	list_for_each(pos, taskq) {
+		if (pos == t) {
+			list_del(t);
+			list_add_tail(t, taskq);
+			break;
 		}
 	}
 
-	raw_spin_lock_irq(p_lock);
+	raw_spin_unlock_irq(p_lock);
 }
 
 /*
@@ -196,41 +236,46 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct sched_grr_entity *se = &curr->grr;
+	BOOL need_resched = M_FALSE;
 
 	/* Update statistics */
-	if (--rq->grr.m_rebalance_cnt) {
-		if(rq->grr.m_rebalance_cnt == 0){
-			/* "set flag for rebalanceing */
-			rq->grr.m_rebalance_cnt = GRR_REBALANCE;
-		}
+	if ((--rq->grr.m_rebalance_cnt) == 0) {
+		/* set flag for rebalanceing & set resched*/
+		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
+		rq->grr.m_need_balance = M_TRUE;
+		need_resched = M_TRUE;
 	}
+
+	if (curr->policy != SCHED_GRR)
+		goto __grr_tick_end__;
 	
 	/* @lfred:
 		not sure if there is a chance that tick twice 
 		before you schedule. We take it conservatively.
 	*/
-	if (se->time_slice != 0) { 
-		se->time_slice--;
-		return;
+	if (se->m_is_timeup == M_FALSE && se->m_time_slice > 0) { 
+		se->m_time_slice--;
+		goto __grr_tick_end__;
 	}
 		
 	/* the running task is expired. */
 	/* reset the time slice variable */
-	se->time_slice = GRR_TIMESLICE;
+	se->m_time_slice = M_GRR_TIMESLICE;
+	se->m_is_timeup = M_TRUE;
 
-	/* @lfred: 
-	 * 	it can be a problem - how to sync among CPUs ? 
-	 */
 	if (rq->grr.m_nr_running > 1) {
 		/* Time up for the current entity */
 		/* put the current task to the end of the list */
-		list_del(&(curr->grr.m_rq_list));
-		list_add_tail(&(curr->grr.m_rq_list), &(rq->grr.m_task_q));
-		set_tsk_need_resched(curr);
-	} else {
-		/* doing nothing - if only one task, we should just run*/
-		return;
+		//list_del(&(se->m_rq_list));
+		//list_add_tail(&(se->m_rq_list), &(rq->grr.m_task_q));
+		need_resched = M_TRUE;
 	}
+ 
+__grr_tick_end__:
+	if (need_resched)
+		set_tsk_need_resched(curr);
+
+	return;
 }
 
 /* Account for a task changing its policy or group.
@@ -240,6 +285,7 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void set_curr_task_grr(struct rq *rq)
 {
+	/* add to the queue, and increment the count */	
 }
 
 /*
