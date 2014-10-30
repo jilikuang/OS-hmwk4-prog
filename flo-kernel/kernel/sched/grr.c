@@ -381,11 +381,14 @@ __do_nothing:
 * Get the queue with the highest total number of tasks
 * Bo: Need to consider within a group later
 */
-static struct rq* grr_find_busiest_queue(){
-	struct rq *busiest_rq;
-    grr_lock(&busiest_rq->grr);
-
-    return busiest_rq;
+static struct rq* grr_find_busiest_queue() 
+{
+	struct rq *busiest_rq = NULL;
+#if 0	
+	grr_lock(&busiest_rq->grr);
+	grr_unlock(&busiest_rq->grr);
+#endif
+	return busiest_rq;
 }
 
 /*
