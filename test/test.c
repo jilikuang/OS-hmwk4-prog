@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 
 	while (1) {
 		printf("test program %d running.\n", getpid());
-		sleep(5);
+		sleep(2);
 	}
 
 	return 0;
