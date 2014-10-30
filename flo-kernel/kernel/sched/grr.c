@@ -321,32 +321,35 @@ static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 * Bo: Ignore idle CPU to steal task from other CPU. 
 *	Ignore the group concept at this point.
 */
-static int load_balance(struct rq *this_rq)
+static int grr_load_balance(struct rq *this_rq)
 {
-        struct rq *busiest;
-        struct rq *least_busiest;
+        struct rq *busiest_rq;
+        struct rq *target_rq;
 
         BOOL is_task_moved = M_FALSE;
 
         raw_spin_lock_irq(&this_rq->grr.m_runtime_lock);
 
         /* get least and most busiest queue 
-        busiest = grr_find_busiest_queue();
+        busiest_rq = grr_find_busiest_queue();
         */
-        if (!(busiest == this_rq))
+        if (!(busiest_rq == this_rq))
                 goto do_nothing;
 
-        /* least_busiest = grr_find_least_busiest_queue(); */
+        /* target_rq = grr_find_least_busiest_queue(); */
 
         /* make sure load balance will not reverse */
-        if(busiest->grr.m_nr_running > 1 && 
-        	(least_busiest->grr.m_nr_running) + 1 < busiest->grr.m_nr_running){
+        if(busiest_rq->grr.m_nr_running > 1 && 
+        	(target_rq->grr.m_nr_running) + 1 < busiest_rq->grr.m_nr_running){
             /* Here, we will do task moving */
-  
+  			/*
+  			double_lock_balance(busiest_rq, target_rq);
+  			busiest_rq->grr.pick_next_task();
+  			*/
 			is_task_moved = M_TRUE;
             /* unlock queues locked in find fucntions */ 
-            raw_spin_unlock_irq(&busiest->grr.m_runtime_lock);
-            raw_spin_unlock_irq(&least_busiest->grr.m_runtime_lock);
+            raw_spin_unlock_irq(&busiest_rq->grr.m_runtime_lock);
+            raw_spin_unlock_irq(&target_rq->grr.m_runtime_lock);
 
         }
         /* unlock this queue locked at first place */ 
@@ -356,6 +359,28 @@ static int load_balance(struct rq *this_rq)
 do_nothing:
         raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
         return is_task_moved; 
+}
+
+/*
+* Get the queue with the highest total number of tasks
+* Bo: Need to consider within a group later
+*/
+static struct rq* grr_find_busiest_queue(){
+	struct rq *busiest_rq;
+    raw_spin_lock_irq(&busiest_rq->grr.m_runtime_lock);
+
+    return busiest_rq;
+}
+
+/*
+* Get the queue with the lowest total number of tasks
+* Bo: Need to consider within a group later
+*/
+static struct rq* grr_find_lest_busiest_queue(){
+    struct rq *target_rq;
+    raw_spin_lock_irq(&target_rq->grr.m_runtime_lock);
+
+    return target_rq;
 }
 
 /*
