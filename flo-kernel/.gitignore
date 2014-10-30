@@ -32,6 +32,10 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
+avd.bat
+GPATH
+GTAGS
+GRTAGS
 
 #
 # Top-level generic files
