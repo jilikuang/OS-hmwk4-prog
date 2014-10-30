@@ -162,16 +162,22 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
 	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
+	struct list_head *pos = NULL;
 
 	/* just return if this is not my job */
 	if (prev->sched_class != &grr_sched_class)
 		return;
 	
 	raw_spin_lock_irq(p_lock);
-	
-	list_del(&(prev->grr.m_rq_list));
-	list_add_tail(&(prev->grr.m_rq_list), &(rq->grr.m_task_q));
-	
+
+	/* traverse the list and try to find the task */
+	list_for_each(pos, &(rq->grr.m_task_q)) {
+		if (pos == &(prev->grr.m_rq_list)) {
+			list_del(&(prev->grr.m_rq_list));
+			list_add_tail(&(prev->grr.m_rq_list), &(rq->grr.m_task_q));
+		}
+	}
+
 	raw_spin_lock_irq(p_lock);
 }
 
