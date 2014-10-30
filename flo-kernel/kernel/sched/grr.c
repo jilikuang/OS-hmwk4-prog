@@ -344,7 +344,7 @@ static int grr_load_balance(struct rq *this_rq)
 
         BOOL is_task_moved = M_FALSE;
 
-        raw_spin_lock_irq(&this_rq->grr.m_runtime_lock);
+        grr_lock(&this_rq->grr);
 
         /* get least and most busiest queue 
         busiest_rq = grr_find_busiest_queue();
@@ -364,16 +364,16 @@ static int grr_load_balance(struct rq *this_rq)
   			*/
 			is_task_moved = M_TRUE;
             /* unlock queues locked in find fucntions */ 
-            raw_spin_unlock_irq(&busiest_rq->grr.m_runtime_lock);
-            raw_spin_unlock_irq(&target_rq->grr.m_runtime_lock);
+            grr_unlock(&busiest_rq->grr);
+            grr_unlock(&target_rq->grr);
 
         }
         /* unlock this queue locked at first place */ 
-        raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
+        grr_unlock(&this_rq->grr);
         return is_task_moved;
 
 __do_nothing:
-        raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
+        grr_unlock(&this_rq->grr);
         return is_task_moved; 
 }
 
@@ -383,7 +383,7 @@ __do_nothing:
 */
 static struct rq* grr_find_busiest_queue(){
 	struct rq *busiest_rq;
-    raw_spin_lock_irq(&busiest_rq->grr.m_runtime_lock);
+    grr_lock(&busiest_rq->grr);
 
     return busiest_rq;
 }
@@ -394,7 +394,7 @@ static struct rq* grr_find_busiest_queue(){
 */
 static struct rq* grr_find_lest_busiest_queue(){
     struct rq *target_rq;
-    raw_spin_lock_irq(&target_rq->grr.m_runtime_lock);
+    grr_lock(&target_rq->grr);
 
     return target_rq;
 }
