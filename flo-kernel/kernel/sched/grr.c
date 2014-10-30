@@ -350,7 +350,7 @@ static int grr_load_balance(struct rq *this_rq)
         busiest_rq = grr_find_busiest_queue();
         */
         if (!(busiest_rq == this_rq))
-                goto do_nothing;
+                goto __do_nothing;
 
         /* target_rq = grr_find_least_busiest_queue(); */
 
@@ -372,7 +372,7 @@ static int grr_load_balance(struct rq *this_rq)
         raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
         return is_task_moved;
 
-do_nothing:
+__do_nothing:
         raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
         return is_task_moved; 
 }
@@ -446,5 +446,6 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
+
 
 
