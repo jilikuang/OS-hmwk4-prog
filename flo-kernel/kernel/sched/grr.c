@@ -7,8 +7,6 @@
 /* Defines */
 /*****************************************************************************/
 #define	PRINTK	printk
-#define M_GRR_TIME_SLICE 	100
-#define M_GRR_LOAD_BALANCE_TIME 500
 
 #define BOOL	int
 #define	M_TRUE	1
