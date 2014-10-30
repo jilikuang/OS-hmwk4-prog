@@ -315,6 +315,50 @@ static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 }
 
 /*
+* Whenever, it is time to do load balance, this function will be called.
+* The fuction will get the busiest queue's next eligble task,
+* and put it into least busiest queue.
+* Bo: Ignore idle CPU to steal task from other CPU. 
+*	Ignore the group concept at this point.
+*/
+static int load_balance(struct rq *this_rq)
+{
+        struct rq *busiest;
+        struct rq *least_busiest;
+
+        BOOL is_task_moved = M_FALSE;
+
+        raw_spin_lock_irq(&this_rq->grr.m_runtime_lock);
+
+        /* get least and most busiest queue 
+        busiest = grr_find_busiest_queue();
+        */
+        if (!(busiest == this_rq))
+                goto do_nothing;
+
+        /* least_busiest = grr_find_least_busiest_queue(); */
+
+        /* make sure load balance will not reverse */
+        if(busiest->grr.m_nr_running > 1 && 
+        	(least_busiest->grr.m_nr_running) + 1 < busiest->grr.m_nr_running){
+            /* Here, we will do task moving */
+  
+			is_task_moved = M_TRUE;
+            /* unlock queues locked in find fucntions */ 
+            raw_spin_unlock_irq(&busiest->grr.m_runtime_lock);
+            raw_spin_unlock_irq(&least_busiest->grr.m_runtime_lock);
+
+        }
+        /* unlock this queue locked at first place */ 
+        raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
+        return is_task_moved;
+
+do_nothing:
+        raw_spin_unlock_irq(&this_rq->grr.m_runtime_lock);
+        return is_task_moved; 
+}
+
+/*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
 const struct sched_class grr_sched_class = {
@@ -361,4 +405,5 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
+
 
