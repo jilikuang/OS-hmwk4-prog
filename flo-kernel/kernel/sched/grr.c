@@ -163,6 +163,10 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
 	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
 
+	/* just return if this is not my job */
+	if (prev->sched_class != &grr_sched_class)
+		return;
+	
 	raw_spin_lock_irq(p_lock);
 	
 	list_del(&(prev->grr.m_rq_list));
