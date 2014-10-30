@@ -40,6 +40,18 @@ static void grr_reset_se(struct sched_grr_entity *grr_se)
 	grr_se->m_is_timeup = M_FALSE;
 }
 
+static void grr_lock(struct grr_rq *p_grr_rq)
+{
+	struct raw_spinlock *p_lock = &(p_grr_rq->m_runtime_lock);
+	raw_spin_lock(p_lock);
+}
+
+static void grr_unlock(struct grr_rq *p_grr_rq)
+{
+	struct raw_spinlock *p_lock = &(p_grr_rq->m_runtime_lock);
+	raw_spin_unlock(p_lock);
+}
+
 /* REAL thing here */
 /*****************************************************************************/
 /* init func: 
@@ -63,18 +75,18 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
-
 	grr_reset_se(&(p->grr));
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));
 
-	raw_spin_lock_irq(p_lock);
+	/* critical section */
+	grr_lock(&rq->grr);
 	
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
 	rq->grr.m_nr_running++;	
 
-	raw_spin_unlock_irq(p_lock);
-	
+	grr_unlock(&rq->grr);
+	/* out of critical section */	
+
 	inc_nr_running(rq);	
 }
 
@@ -86,14 +98,14 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
-	
-	raw_spin_lock_irq(p_lock);
+	/* critical section */
+	grr_lock(&rq->grr);
 
 	list_del(&(p->grr.m_rq_list));
 	rq->grr.m_nr_running--;	
 
-	raw_spin_unlock_irq(p_lock);
+	grr_unlock(&rq->grr);
+	/* out of critical section */	
 	
 	dec_nr_running(rq);
 }
@@ -106,8 +118,6 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void yield_task_grr(struct rq *rq)
 {
-	//struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
-
 #if 1
 	/* if the current task is my, put it in the end of queue */
 	if (rq->grr.m_nr_running != 1) {
@@ -145,17 +155,19 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
 #if 1
 	struct task_struct *p = NULL;
-	struct raw_spinlock *p_lock = &(rq->grr.m_runtime_lock);
 
 	/* handle the case when rebalance is on */
 	if (rq->grr.m_need_balance) {
 		rq->grr.m_need_balance = M_FALSE;	
+	
+		/* take care of the rebalance here */
 	}
 
 	if (!rq->nr_running)
 		return NULL;
 
-	raw_spin_lock_irq(p_lock);
+	/* critical section */
+	grr_lock(&rq->grr);
 
 	p = rq->curr;
 	
@@ -178,7 +190,9 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 		grr_reset_se(&(p->grr));
 	}
 
-	raw_spin_unlock_irq(p_lock);
+	grr_unlock(&rq->grr);
+	/* out of critical section */
+	
 	return p; 
 #else	
 	schedstat_inc(rq, sched_goidle);
@@ -195,16 +209,17 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
  */
 static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
-	struct raw_spinlock *p_lock = &rq->grr.m_runtime_lock;
 	struct list_head *taskq = &(rq->grr.m_task_q);
 	struct list_head *t = &(prev->grr.m_rq_list);
 	struct list_head *pos = NULL;
-	/* just return if this is not my job */
+	
+	/* check if it is GRR class */
 	if (prev->sched_class != &grr_sched_class)
 		return;
 	
-	raw_spin_lock_irq(p_lock);
-
+	/* critical section */
+	grr_lock(&rq->grr);
+	
 	/* 
 		traverse the list and try to find the task
 	  	The problem here is that the prev task may not be the one 
@@ -218,7 +233,8 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 		}
 	}
 
-	raw_spin_unlock_irq(p_lock);
+	grr_unlock(&rq->grr);
+	/* out of critical section */
 }
 
 /*
@@ -261,14 +277,14 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 	/* the running task is expired. */
 	/* reset the time slice variable */
 	se->m_time_slice = M_GRR_TIMESLICE;
-	se->m_is_timeup = M_TRUE;
 
 	if (rq->grr.m_nr_running > 1) {
 		/* Time up for the current entity */
 		/* put the current task to the end of the list */
-		//list_del(&(se->m_rq_list));
-		//list_add_tail(&(se->m_rq_list), &(rq->grr.m_task_q));
 		need_resched = M_TRUE;
+		
+		/* if there is more than one task, we set time is up */
+		se->m_is_timeup = M_TRUE;
 	}
  
 __grr_tick_end__:
