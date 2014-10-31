@@ -185,9 +185,9 @@ static int grr_load_balance(struct rq *this_rq)
     if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 	/* Here, we will do task moving */
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
-		enqueue_task_grr(target_rq, busiest_rq_task, 1);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
-
+		enqueue_task_grr(target_rq, busiest_rq_task, 1);
+		printk("I am doing load balancing\n");
 	/* lock both RQs */
 	/* step 1: pick one task in the busiest rq	*/
 	/* step 2: test is_allowed_on_target_cpu 	*/
@@ -195,7 +195,7 @@ static int grr_load_balance(struct rq *this_rq)
 	/* step 4: do the migration 			*/ 
 	/* unlock both RQs */
 
-	is_task_moved = M_TRUE;
+		is_task_moved = M_TRUE;
         
 	/* unlock queues locked in find fucntions */ 
 		//grr_unlock(&busiest_rq->grr);
@@ -231,7 +231,7 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 {
 	grr_rq->mp_rq = rq;
 	grr_rq->m_nr_running = 0;
-	grr_rq->m_rebalance_cnt = 0;
+	grr_rq->m_rebalance_cnt = M_GRR_REBALANCE;
 	INIT_LIST_HEAD(&grr_rq->m_task_q);
 	raw_spin_lock_init(&grr_rq->m_runtime_lock);
 }
@@ -244,6 +244,8 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
                 
 		/* reset the rq variable */
 		rq->grr.m_need_balance = M_FALSE;
+		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
+		printk("I am doing pre_schedule_grr\n");
 
                 /* take care of the rebalance here */
                 grr_load_balance(rq);
@@ -580,3 +582,4 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
+
