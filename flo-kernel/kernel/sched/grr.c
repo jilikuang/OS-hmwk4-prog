@@ -121,6 +121,7 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 {
 	struct rq *least_busiest = NULL;
 	struct rq *rq;
+r
 	unsigned long min_load = 0xffffffff;
 	int i;
 
@@ -156,58 +157,61 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 
 static int grr_load_balance(struct rq *this_rq)
 {
-    struct rq *busiest_rq;
-    struct rq *target_rq;
-    struct task_struct *busiest_rq_task;
+	struct rq *busiest_rq;
+    	struct rq *target_rq;
+    	struct task_struct *busiest_rq_task;
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
-    BOOL is_task_moved = M_FALSE;
+    	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
 
 	cpumask_copy(cpus, cpu_active_mask);
 
 	/* @lfred: why lock ? */
-    //grr_lock(&this_rq->grr);
+    	//grr_lock(&this_rq->grr);
 
-    target_rq = grr_find_least_busiest_queue(cpus);
+	target_rq = grr_find_least_busiest_queue(cpus);
+	busiest_rq = grr_find_busiest_queue(cpus);
+	if (target_rq == NULL || busiest_rq == NULL)
+		return M_FALSE;
+	
 	/* @lfred: if I am not the busiest, just go away. */
-    if (target_rq != this_rq)
-            goto __do_nothing;
+	if (target_rq != this_rq)
+		goto __do_nothing__;
 
-    /* get least and most busiest queue */
-    busiest_rq = grr_find_busiest_queue(cpus);
-
-    double_lock_balance(busiest_rq, target_rq);
+	/* get least and most busiest queue */
+	double_lock_balance(busiest_rq, target_rq);
 
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
 
-    /* make sure load balance will not reverse */
-    if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
-	/* Here, we will do task moving */
+    	/* make sure load balance will not reverse */
+    	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
+		/* Here, we will do task moving */
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 		enqueue_task_grr(target_rq, busiest_rq_task, 1);
 		printk("I am doing load balancing\n");
-	/* lock both RQs */
-	/* step 1: pick one task in the busiest rq	*/
-	/* step 2: test is_allowed_on_target_cpu 	*/
-	/* step 3: if step 2 is false, go to step 1.	*/
-	/* step 4: do the migration 			*/ 
-	/* unlock both RQs */
+	
+		/* lock both RQs */
+		/* step 1: pick one task in the busiest rq	*/
+		/* step 2: test is_allowed_on_target_cpu 	*/
+		/* step 3: if step 2 is false, go to step 1.	*/
+		/* step 4: do the migration 			*/ 
+		/* unlock both RQs */
 
 		is_task_moved = M_TRUE;
         
-	/* unlock queues locked in find fucntions */ 
+		/* unlock queues locked in find fucntions */ 
 		//grr_unlock(&busiest_rq->grr);
-        //grr_unlock(&target_rq->grr);
-    }
+        	//grr_unlock(&target_rq->grr);
+    	}
 
-    /* unlock this queue locked at first place */ 
-    //grr_unlock(&this_rq->grr);
-    double_unlock_balance(busiest_rq, target_rq);
+    	/* unlock this queue locked at first place */ 
+    	//grr_unlock(&this_rq->grr);
+    	double_unlock_balance(busiest_rq, target_rq);
 
-__do_nothing:
-    return is_task_moved;
+__do_nothing__:
+    	return is_task_moved;
 }
 
 /* This function is used to test if the destination CPU is allowed */
