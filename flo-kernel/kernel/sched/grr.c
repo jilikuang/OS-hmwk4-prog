@@ -48,6 +48,7 @@ static void grr_reset_se(struct sched_grr_entity *grr_se)
 	grr_se->m_is_timeup = M_FALSE;
 }
 
+/* Not necessary - just leave this */
 static void grr_set_running_cpu(struct sched_grr_entity *grr_se, struct rq *rq)
 {
 #ifdef CONFIG_SMP
@@ -110,7 +111,7 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 {
 	struct rq *least_busiest = NULL;
 	struct rq *rq;
-	unsigned long min_load = 0;
+	unsigned long min_load = 0xffffffff;
 	int i;
 
 #if 0
