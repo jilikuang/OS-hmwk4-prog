@@ -121,7 +121,7 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 {
 	struct rq *least_busiest = NULL;
 	struct rq *rq;
-r
+
 	unsigned long min_load = 0xffffffff;
 	int i;
 
@@ -174,23 +174,26 @@ static int grr_load_balance(struct rq *this_rq)
 	if (target_rq == NULL || busiest_rq == NULL)
 		return M_FALSE;
 	
-	/* @lfred: if I am not the busiest, just go away. */
+	/* @lfred: if I am not the least busiest, just go away. */
 	if (target_rq != this_rq)
 		goto __do_nothing__;
 
 	/* get least and most busiest queue */
-	double_lock_balance(busiest_rq, target_rq);
+	printk("I am doing load balancing0!!\n");
+	double_lock_balance(target_rq, busiest_rq);
 
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
-
+	printk("nr_busiest:%d !!\n",nr_busiest);
+	printk("nr_target:%d !!\n",nr_target);
     	/* make sure load balance will not reverse */
     	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 		/* Here, we will do task moving */
+		printk("I am doing load balancing1!!\n");
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 		enqueue_task_grr(target_rq, busiest_rq_task, 1);
-		printk("I am doing load balancing\n");
+		printk("I am doing load balancing2!!\n");
 	
 		/* lock both RQs */
 		/* step 1: pick one task in the busiest rq	*/
@@ -208,7 +211,9 @@ static int grr_load_balance(struct rq *this_rq)
 
     	/* unlock this queue locked at first place */ 
     	//grr_unlock(&this_rq->grr);
-    	double_unlock_balance(busiest_rq, target_rq);
+    	printk("I am doing load balancing3!!\n");
+	double_unlock_balance(target_rq, busiest_rq);
+	printk("I am doing load balancing4!!\n");
 
 __do_nothing__:
     	return is_task_moved;

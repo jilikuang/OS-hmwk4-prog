@@ -1260,7 +1260,11 @@ struct sched_rt_entity {
 /*****************************************************************************/
 /* Default time slice for GRR is 100 msecs */
 #define M_GRR_TIMESLICE	(100 * HZ / 1000)
+#if 0
 #define M_GRR_REBALANCE	(500 * HZ / 1000)
+#else
+#define M_GRR_REBALANCE (10 * HZ / 1000)
+#endif
 
 /* @lfred - add for grr schedule 	*/
 /* may need or maybe not 		*/
