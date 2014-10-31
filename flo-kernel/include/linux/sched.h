@@ -1266,8 +1266,11 @@ struct sched_rt_entity {
 /* may need or maybe not 		*/
 struct sched_grr_entity {
 	unsigned int m_time_slice;
-	struct list_head m_rq_list;
+	unsigned int m_cpu_history;
 	int m_is_timeup;
+	
+	/* list struct */
+	struct list_head m_rq_list;
 };
 /*****************************************************************************/
 

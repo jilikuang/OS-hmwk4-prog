@@ -8,6 +8,7 @@
 #include <time.h>
 
 #define	N_TEST_TASK	125
+#define N_TEST_LOOP	100
 
 static int get_cpu_id() {
 
@@ -42,7 +43,7 @@ static void create_new_task()
 	if (pid == 0) {
 		srand (time(NULL));
 
-		for (i = 0; ;i++) {
+		for (i = 0; i != N_TEST_LOOP; i++) {
 			if (rand() % 2 == 1) {
 				if (sched_getscheduler(getpid()) == 6) {
 					param.sched_priority = 0;

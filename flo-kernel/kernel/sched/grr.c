@@ -18,6 +18,10 @@
 static int grr_load_balance(struct rq *this_rq);
 #endif	/* CONFIG_SMP */
 
+/* Global variables */
+/*****************************************************************************/
+DEFINE_PER_CPU(cpumask_var_t, g_grr_load_balance_tmpmask);
+
 /* Utility functions */
 /*****************************************************************************/
 static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
@@ -42,6 +46,13 @@ static void grr_reset_se(struct sched_grr_entity *grr_se)
 {
 	grr_se->m_time_slice = M_GRR_TIMESLICE;
 	grr_se->m_is_timeup = M_FALSE;
+}
+
+static void grr_set_running_cpu(struct sched_grr_entity *grr_se, struct rq *rq)
+{
+#ifdef CONFIG_SMP
+	grr_se->m_cpu_history |= (1 << rq->cpu);
+#endif
 }
 
 static void grr_lock(struct grr_rq *p_grr_rq)
@@ -131,49 +142,71 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 * Ignore idle CPU to steal task from other CPU. 
 * Ignore group concept.
 */
-DEFINE_PER_CPU(cpumask_var_t, grr_load_balance_tmpmask);
 
 static int grr_load_balance(struct rq *this_rq)
 {
         struct rq *busiest_rq;
         struct rq *target_rq;
-	struct cpumask *cpus = __get_cpu_var(grr_load_balance_tmpmask);
+	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
         BOOL is_task_moved = M_FALSE;
-	
+	int nr_busiest = 0, nr_target = 0;	
+
 	cpumask_copy(cpus, cpu_active_mask);
 
-        grr_lock(&this_rq->grr);
+	/* @lfred: why lock ? */
+        //grr_lock(&this_rq->grr);
 
         /* get least and most busiest queue */
         busiest_rq = grr_find_busiest_queue(cpus);
-		
-        if (!(busiest_rq == this_rq))
+	nr_busiest = busiest_rq->grr.m_nr_running;	
+	
+	/* @lfred: if I am not the busiest, just go away. */
+        if (busiest_rq != this_rq)
                 goto __do_nothing;
 
         target_rq = grr_find_least_busiest_queue(cpus);
+	nr_target = target_rq->grr.m_nr_running;
 
         /* make sure load balance will not reverse */
-        if(busiest_rq->grr.m_nr_running > 1 && 
-        	(target_rq->grr.m_nr_running) + 1 < busiest_rq->grr.m_nr_running){
-            /* Here, we will do task moving */
-  			/*
-  			double_lock_balance(busiest_rq, target_rq);
-  			busiest_rq->grr.pick_next_task();
-  			*/
-			is_task_moved = M_TRUE;
-            /* unlock queues locked in find fucntions */ 
-            grr_unlock(&busiest_rq->grr);
-            grr_unlock(&target_rq->grr);
+        if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
+		/* Here, we will do task moving */
+  		/*
+  		double_lock_balance(busiest_rq, target_rq);
+  		busiest_rq->grr.pick_next_task();
+  		*/
 
+		/* lock both RQs */
+		/* step 1: pick one task in the busiest rq	*/
+		/* step 2: test is_allowed_on_target_cpu 	*/
+		/* step 3: if step 2 is false, go to step 1.	*/
+		/* step 4: do the migration 			*/ 
+		/* unlock both RQs */
+
+		is_task_moved = M_TRUE;
+            
+		/* unlock queues locked in find fucntions */ 
+		//grr_unlock(&busiest_rq->grr);
+            	//grr_unlock(&target_rq->grr);
         }
+
         /* unlock this queue locked at first place */ 
-        grr_unlock(&this_rq->grr);
+        //grr_unlock(&this_rq->grr);
         return is_task_moved;
 
 __do_nothing:
-        grr_unlock(&this_rq->grr);
+        //grr_unlock(&this_rq->grr);
         return is_task_moved; 
 }
+
+/* This function is used to test if the destination CPU is allowed */
+BOOL is_allowed_on_target_cpu(struct task_struct *p, int target_cpu)
+{
+	if ((p->grr.m_cpu_history & (1 << target_cpu)) > 0)
+		return M_FALSE;
+	else
+		return M_TRUE;
+}
+
 #endif /* CONFIG_SMP */
 
 /* scheduler class functions */
@@ -295,10 +328,7 @@ check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
  */
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
-#if 1
 	struct task_struct *p = NULL;
-
-	
 
 	if (!rq->nr_running)
 		return NULL;
@@ -314,6 +344,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 		if (p->sched_class == &grr_sched_class && p->grr.m_is_timeup) {			
 			list_del(&(p->grr.m_rq_list));
 			list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+			grr_reset_se(&p->grr);
 		}
 
 		/* pick up the 1st one in the RQ */
@@ -325,17 +356,15 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	
 		/* reset the running vars */	
 		grr_reset_se(&(p->grr));
+
+		/* record that the task has been run in the current cpu */
+		grr_set_running_cpu (&(p->grr), rq);
 	}
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
 	
 	return p; 
-#else	
-	schedstat_inc(rq, sched_goidle);
-	calc_load_account_idle(rq);
-	return rq->idle;
-#endif
 }
 
 /*
@@ -433,6 +462,14 @@ __grr_tick_end__:
 	return;
 }
 
+/* called when task is forked. */
+void task_fork_grr (struct task_struct *p) {
+
+	/* reset grr related fields */
+	grr_reset_se (&(p->grr));
+	p->grr.m_cpu_history = 0;
+}
+
 /* Account for a task changing its policy or group.
  *
  * This routine is mostly called to set cfs_rq->curr field when a task
@@ -445,17 +482,24 @@ static void set_curr_task_grr(struct rq *rq)
 
 /*
  * We switched to the sched_grr class.
- * @lfred: this is MUST for testing. We need to allow the task to become a rr task.
+ * @lfred: this is MUST for testing. 
+ * The current design is we reset everything after you switch to GRR 
+ * Since we are not able to track everything after not with-in our
+ * control, we treat this task as a newly forked task.
  */
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
 {
+	/* reset grr related fields */
+        grr_reset_se (&(p->grr));
+        p->grr.m_cpu_history = 0;
 	return;
 }
 
 /*
  * Priority of the task has changed. Check to see if we preempt
  * the current task.
- * @lfred: should we implement this ? return will be fine ?
+ * @lfred: We dont really care about priorities. Dont even pretend
+ * we care.
  */
 static void
 prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
@@ -463,10 +507,11 @@ prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
 	return;
 }
 
+/* return the time slice for the task -> in GRR, everybody's the same */
+/* the jiffie = 100 HZ / 10  */
 static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 {
-	PRINTK("get_rr_interval_grr\n");
-	return 0;
+	return (unsigned int)(HZ/10);
 }
 
 /*
@@ -505,7 +550,7 @@ const struct sched_class grr_sched_class = {
 
 	.set_curr_task          = set_curr_task_grr,
 	.task_tick		= task_tick_grr,
-	/* void (*task_fork) (struct task_struct *p); */
+	.task_fork		= task_fork_grr,
 
 	/* void (*switched_from) (struct rq *this_rq, struct task_struct *task); */
 	.switched_to		= switched_to_grr,
