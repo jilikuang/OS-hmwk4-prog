@@ -5,8 +5,9 @@
 #include <sys/syscall.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <time.h>
 
-#define	N_TEST_TASK	10
+#define	N_TEST_TASK	125
 
 static int get_cpu_id() {
 
@@ -33,13 +34,33 @@ static void create_new_task()
 {
 	pid_t pid;
 	int i;
+	long ret;
+	struct sched_param param;
 
 	pid = fork();
 
 	if (pid == 0) {
-		for (i = 0; i < 100; i++) {
+		srand (time(NULL));
+
+		for (i = 0; ;i++) {
+			if (rand() % 2 == 1) {
+				if (sched_getscheduler(getpid()) == 6) {
+					param.sched_priority = 0;
+					ret = sched_setscheduler(getpid(), SCHED_OTHER, &param);
+					
+					if (ret != 0)
+						printf ("set err for %d: %s\n", getpid(), strerror(errno));
+				} else {
+					param.sched_priority = 50;
+					ret = sched_setscheduler(getpid(), 6, &param);
+					
+					if (ret != 0)
+						printf ("set err for %d: %s\n", getpid(), strerror(errno));
+				}
+			}
+		
 			test_print(i);
-			sleep(1);
+			usleep(rand() % 100 * 10000 + 1000);
 		}
 
 		exit (0);
