@@ -131,13 +131,13 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 * Ignore idle CPU to steal task from other CPU. 
 * Ignore group concept.
 */
-DEFINE_PER_CPU(cpumask_var_t, load_balance_tmpmask);
+DEFINE_PER_CPU(cpumask_var_t, grr_load_balance_tmpmask);
 
 static int grr_load_balance(struct rq *this_rq)
 {
         struct rq *busiest_rq;
         struct rq *target_rq;
-	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
+	struct cpumask *cpus = __get_cpu_var(grr_load_balance_tmpmask);
         BOOL is_task_moved = M_FALSE;
 	
 	cpumask_copy(cpus, cpu_active_mask);
@@ -174,7 +174,7 @@ __do_nothing:
         grr_unlock(&this_rq->grr);
         return is_task_moved; 
 }
-#endif
+#endif /* CONFIG_SMP */
 
 /* scheduler class functions */
 /*****************************************************************************/

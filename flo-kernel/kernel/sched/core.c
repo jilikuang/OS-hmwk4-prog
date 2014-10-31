@@ -4873,14 +4873,17 @@ out_unlock:
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
 	long retval = 0;
+
 #ifdef CONFIG_SMP
-	PRINTK("sched_set_CPUgroup: %d %d\n", numCPU, group);
+	
+	/* PRINTK("sched_set_CPUgroup: %d %d\n", numCPU, group); */
 	if (numCPU < 1 || numCPU >= nr_cpu_ids)
 		return -EINVAL;
 
 	if (!(group == FOREGROUND || group == BACKGROUND))
 		return -EINVAL;
 #endif
+
 	return retval;
 }
 
