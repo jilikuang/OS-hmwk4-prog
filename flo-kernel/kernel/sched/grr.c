@@ -16,6 +16,11 @@
 /*****************************************************************************/
 #ifdef CONFIG_SMP
 static int grr_load_balance(struct rq *this_rq);
+static struct task_struct *pick_next_task_grr(struct rq *rq);
+static void
+enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags);
+static void
+dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags);
 #endif	/* CONFIG_SMP */
 
 /* Global variables */
@@ -148,6 +153,7 @@ static int grr_load_balance(struct rq *this_rq)
 {
     struct rq *busiest_rq;
     struct rq *target_rq;
+    struct task_struct *busiest_rq_task;
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
@@ -173,9 +179,9 @@ static int grr_load_balance(struct rq *this_rq)
     /* make sure load balance will not reverse */
     if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 	/* Here, we will do task moving */
-		/*
-		busiest_rq->grr.pick_next_task();
-		*/
+		busiest_rq_task = pick_next_task_grr(busiest_rq);
+		enqueue_task_grr(target_rq, busiest_rq_task, 1);
+		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 
 	/* lock both RQs */
 	/* step 1: pick one task in the busiest rq	*/
@@ -324,9 +330,6 @@ check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
 		resched_task(p);
 #endif
 }
-
-
-
 
 /*
  * return the next task to run: select a task in my run queue if there is any
