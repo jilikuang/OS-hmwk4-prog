@@ -146,57 +146,57 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 
 static int grr_load_balance(struct rq *this_rq)
 {
-        struct rq *busiest_rq;
-        struct rq *target_rq;
+    struct rq *busiest_rq;
+    struct rq *target_rq;
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
-        BOOL is_task_moved = M_FALSE;
+    BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
 
 	cpumask_copy(cpus, cpu_active_mask);
 
 	/* @lfred: why lock ? */
-        //grr_lock(&this_rq->grr);
+    //grr_lock(&this_rq->grr);
 
-        /* get least and most busiest queue */
-        busiest_rq = grr_find_busiest_queue(cpus);
-	nr_busiest = busiest_rq->grr.m_nr_running;	
-	
+    target_rq = grr_find_least_busiest_queue(cpus);
 	/* @lfred: if I am not the busiest, just go away. */
-        if (busiest_rq != this_rq)
-                goto __do_nothing;
+    if (target_rq != this_rq)
+            goto __do_nothing;
 
-        target_rq = grr_find_least_busiest_queue(cpus);
+    /* get least and most busiest queue */
+    busiest_rq = grr_find_busiest_queue(cpus);
+
+    double_lock_balance(busiest_rq, target_rq);
+
+	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
 
-        /* make sure load balance will not reverse */
-        if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
-		/* Here, we will do task moving */
-  		/*
-  		double_lock_balance(busiest_rq, target_rq);
-  		busiest_rq->grr.pick_next_task();
-  		*/
+    /* make sure load balance will not reverse */
+    if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
+	/* Here, we will do task moving */
+		/*
+		busiest_rq->grr.pick_next_task();
+		*/
 
-		/* lock both RQs */
-		/* step 1: pick one task in the busiest rq	*/
-		/* step 2: test is_allowed_on_target_cpu 	*/
-		/* step 3: if step 2 is false, go to step 1.	*/
-		/* step 4: do the migration 			*/ 
-		/* unlock both RQs */
+	/* lock both RQs */
+	/* step 1: pick one task in the busiest rq	*/
+	/* step 2: test is_allowed_on_target_cpu 	*/
+	/* step 3: if step 2 is false, go to step 1.	*/
+	/* step 4: do the migration 			*/ 
+	/* unlock both RQs */
 
-		is_task_moved = M_TRUE;
-            
-		/* unlock queues locked in find fucntions */ 
+	is_task_moved = M_TRUE;
+        
+	/* unlock queues locked in find fucntions */ 
 		//grr_unlock(&busiest_rq->grr);
-            	//grr_unlock(&target_rq->grr);
-        }
+        //grr_unlock(&target_rq->grr);
+    }
 
-        /* unlock this queue locked at first place */ 
-        //grr_unlock(&this_rq->grr);
-        return is_task_moved;
+    /* unlock this queue locked at first place */ 
+    //grr_unlock(&this_rq->grr);
+    double_unlock_balance(busiest_rq, target_rq);
 
 __do_nothing:
-        //grr_unlock(&this_rq->grr);
-        return is_task_moved; 
+    return is_task_moved;
 }
 
 /* This function is used to test if the destination CPU is allowed */
@@ -238,6 +238,13 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
                 grr_load_balance(rq);
         }
 }
+
+static int
+select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
+{	
+	return task_cpu(p);
+}
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -534,9 +541,9 @@ const struct sched_class grr_sched_class = {
 
 #ifdef CONFIG_SMP
 	.pre_schedule		= pre_schedule_grr,
+	.select_task_rq		= select_task_rq_grr,
 
 #if 0
-	.select_task_rq		= select_task_rq_grr,
 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
 	void (*set_cpus_allowed)(struct task_struct*, const struct cpumask*);
