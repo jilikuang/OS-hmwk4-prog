@@ -47,6 +47,11 @@ static inline struct grr_rq *grr_rq_of_se(struct sched_grr_entity *grr_se)
 	return &rq->grr;
 }
 
+static inline int is_on_grr_rq(struct sched_grr_entity *grr_se)
+{
+	return !list_empty(&grr_se->m_rq_list);
+}
+
 static void grr_reset_se(struct sched_grr_entity *grr_se)
 {
 	grr_se->m_time_slice = M_GRR_TIMESLICE;
@@ -287,7 +292,7 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	/* critical section */
 	grr_lock(&rq->grr);
 
-	list_del(&(p->grr.m_rq_list));
+	list_del_init(&(p->grr.m_rq_list));
 	rq->grr.m_nr_running--;	
 
 	grr_unlock(&rq->grr);
@@ -309,7 +314,7 @@ static void yield_task_grr(struct rq *rq)
 	if (rq->grr.m_nr_running != 1) {
 	#if 0
 		raw_spin_lock(p_lock);	
-		list_del(&(rq->curr->grr.m_task_list));
+		list_del_init(&(rq->curr->grr.m_task_list));
 		list_add_tail(	
 	#endif
 	}	
@@ -352,9 +357,9 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	if (rq->grr.m_nr_running > 0) {	
 
 		/* when the timer interrupt says -> your time is up! */
-		if (p->sched_class == &grr_sched_class && p->grr.m_is_timeup) {			
-			list_del(&(p->grr.m_rq_list));
-			list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+		if (p->sched_class == &grr_sched_class && p->grr.m_is_timeup) {
+			list_move_tail(&(p->grr.m_rq_list),
+					&(rq->grr.m_task_q));
 			grr_reset_se(&p->grr);
 		}
 
@@ -388,7 +393,7 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 {
 	struct list_head *taskq = &(rq->grr.m_task_q);
 	struct list_head *t = &(prev->grr.m_rq_list);
-	struct list_head *pos = NULL;
+//	struct list_head *pos = NULL;
 	
 	/* check if it is GRR class */
 	if (prev->sched_class != &grr_sched_class)
@@ -401,14 +406,16 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 		traverse the list and try to find the task
 	  	The problem here is that the prev task may not be the one 
 		handled by GRR policy
-	*/
+	*//*
 	list_for_each(pos, taskq) {
 		if (pos == t) {
-			list_del(t);
+			list_del_init(t);
 			list_add_tail(t, taskq);
 			break;
 		}
-	}
+	}*/
+	if (is_on_grr_rq(&prev->grr))
+		list_move_tail(t, taskq);
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
@@ -477,7 +484,7 @@ __grr_tick_end__:
 void task_fork_grr (struct task_struct *p) {
 
 	/* reset grr related fields */
-	grr_reset_se (&(p->grr));
+	grr_reset_se(&(p->grr));
 	p->grr.m_cpu_history = 0;
 }
 
@@ -501,7 +508,7 @@ static void set_curr_task_grr(struct rq *rq)
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
 {
 	/* reset grr related fields */
-        grr_reset_se (&(p->grr));
+        grr_reset_se(&(p->grr));
         p->grr.m_cpu_history = 0;
 	return;
 }
