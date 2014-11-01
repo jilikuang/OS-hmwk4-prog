@@ -352,9 +352,11 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
 		printk("I am doing pre_schedule_grr\n");
 
+#if 0
                 /* take care of the rebalance here */
                 grr_load_balance(rq);
-        }
+#endif        
+	}
 }
 
 static int

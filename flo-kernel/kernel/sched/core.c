@@ -4954,6 +4954,7 @@ void show_state_filter(unsigned long state_filter)
 		debug_show_all_locks();
 }
 
+/* @lfred changed */
 void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 {
 #if 0
@@ -7142,7 +7143,10 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
+	/* @lfred: we changed here */
 	current->sched_class = &grr_sched_class;
+	current->policy = 6;
+	/* end */
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
