@@ -4960,6 +4960,7 @@ void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 	idle->sched_class = &idle_sched_class;
 #else
 	idle->sched_class = &grr_sched_class;
+	idle->policy = 6;
 #endif
 }
 
