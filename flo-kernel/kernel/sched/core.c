@@ -4959,7 +4959,7 @@ void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 #if 0
 	idle->sched_class = &idle_sched_class;
 #else
-	idle->sched_class = &grr_sched_class;
+	idle->sched_class = &idle_sched_class;
 	idle->policy = 6;
 #endif
 }
@@ -5013,7 +5013,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 #if 0
 	idle->sched_class = &idle_sched_class;
 #else
-	idle->sched_class = &grr_sched_class;
+	idle->sched_class = &idle_sched_class;
 #endif	
 
 	ftrace_graph_init_idle_task(idle, cpu);
