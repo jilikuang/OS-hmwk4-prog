@@ -4957,7 +4957,7 @@ void show_state_filter(unsigned long state_filter)
 /* @lfred changed */
 void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 {
-#if 0
+#if 1
 	idle->sched_class = &idle_sched_class;
 #else
 	idle->sched_class = &idle_sched_class;
@@ -5011,11 +5011,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	/*
 	 * The idle tasks have their own, simple scheduling class:
 	 */
-#if 0
 	idle->sched_class = &idle_sched_class;
-#else
-	idle->sched_class = &idle_sched_class;
-#endif	
 
 	ftrace_graph_init_idle_task(idle, cpu);
 #if defined(CONFIG_SMP)
