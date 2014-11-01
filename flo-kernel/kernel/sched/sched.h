@@ -310,6 +310,10 @@ struct grr_rq {
 	/* various flags */
 	int	m_need_resched;
 	int	m_need_balance;
+
+	/* Group Scheduling */
+	struct rq *rq;
+	struct task_group *tg;
 };
 
 /* Real-Time classes' related field in a runqueue: */

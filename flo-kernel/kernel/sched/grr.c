@@ -123,7 +123,7 @@ static void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 
 	grr_se->my_q = grr_rq;
 	grr_se->parent = parent;
-	INIT_LIST_HEAD(&grr_se->m_run_list);
+	INIT_LIST_HEAD(&grr_se->m_rq_list);
 }
 
 int alloc_grr_sched_group(
