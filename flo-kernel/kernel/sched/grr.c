@@ -82,10 +82,7 @@ void free_grr_sched_group(struct task_group *tg)
 {
 #ifdef CONFIG_SMP
 	int i;
-/*
-	if (tg->grr_se)
-		destroy_rt_bandwidth(&tg->rt_bandwidth);
-*/
+
 	for_each_possible_cpu(i) {
 		if (tg->grr_rq)
 			kfree(tg->grr_rq[i]);
@@ -99,23 +96,24 @@ void free_grr_sched_group(struct task_group *tg)
 }
 
 #ifdef CONFIG_SMP
-static void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
+void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 		struct sched_grr_entity *grr_se, int cpu,
 		struct sched_grr_entity *parent)
 {
 	struct rq *rq = cpu_rq(cpu);
-/*
-	grr_rq->highest_prio.curr = MAX_RT_PRIO;
-	grr_rq->rt_nr_boosted = 0;*/
+
+	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
 	grr_rq->tg = tg;
 
+	/* Attach GRR rq and se to the TG for this CPU */
 	tg->grr_rq[cpu] = grr_rq;
 	tg->grr_se[cpu] = grr_se;
 
 	if (!grr_se)
 		return;
 
+	/* Initialze or inherit GRR rq from rq or parent */
 	if (!parent)
 		grr_se->grr_rq = &rq->grr;
 	else
@@ -139,10 +137,7 @@ int alloc_grr_sched_group(
 	tg->grr_se = kzalloc(sizeof(grr_se) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->grr_se)
 		goto err;
-/*
-	init_rt_bandwidth(&tg->rt_bandwidth,
-			ktime_to_ns(def_rt_bandwidth.rt_period), 0);
-*/
+
 	for_each_possible_cpu(i) {
 		grr_rq = kzalloc_node(sizeof(struct grr_rq),
 				     GFP_KERNEL, cpu_to_node(i));
@@ -154,8 +149,7 @@ int alloc_grr_sched_group(
 		if (!grr_se)
 			goto err_free_rq;
 
-		init_grr_rq(grr_rq, cpu_rq(i));/*
-		grr_rq->rt_runtime = tg->rt_bandwidth.rt_runtime;*/
+		init_grr_rq(grr_rq, cpu_rq(i));
 		init_tg_grr_entry(tg, grr_rq, grr_se, i, parent->grr_se[i]);
 	}
 
@@ -167,6 +161,12 @@ err:
 	return 0;
 }
 #else
+void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
+		struct sched_grr_entity *grr_se, int cpu,
+		struct sched_grr_entity *parent)
+{
+}
+
 int alloc_grr_sched_group(
 		struct task_group *tg, struct task_group *parent)
 {
