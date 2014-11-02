@@ -6,8 +6,8 @@
 
 #include "cpupri.h"
 
-#if 0
-#define TPRINTK	printk
+#if 1
+#define TPRINTK	trace_printk
 #else
 #define TPRINTK(...)
 #endif

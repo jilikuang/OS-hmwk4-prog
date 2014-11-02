@@ -104,7 +104,7 @@ void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
-	trace_printk("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
+	TPRINTK("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
 
 	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
