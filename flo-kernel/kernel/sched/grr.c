@@ -6,7 +6,11 @@
 
 /* Defines */
 /*****************************************************************************/
-#define	PRINTK	printk
+#if 1
+	#define	PRINTK	trace_printk
+#else
+	#define PRINTK(...) do{}while(0)
+#endif
 
 #define BOOL	int
 #define	M_TRUE	1
@@ -259,6 +263,7 @@ static int grr_load_balance(struct rq *this_rq)
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
+	unsigned long flags;
 
 	cpumask_copy(cpus, cpu_active_mask);
 
@@ -268,28 +273,35 @@ static int grr_load_balance(struct rq *this_rq)
 	target_rq = grr_find_least_busiest_queue(cpus);
 	busiest_rq = grr_find_busiest_queue(cpus);
 	if (target_rq == NULL || busiest_rq == NULL)
-		return M_FALSE;
+		goto __do_nothing__;
 	
-	/* @lfred: if I am not the least busiest, just go away. */
-	if (target_rq != this_rq)
+	/* @lfred: if I am not the busiest, just go away. */
+	if (busiest_rq != this_rq)
+		goto __do_nothing__;
+
+	if (busiest_rq == target_rq)
 		goto __do_nothing__;
 
 	/* get least and most busiest queue */
-	printk("I am doing load balancing0!!\n");
-	double_lock_balance(target_rq, busiest_rq);
+	PRINTK("I am doing load balancing0!!\n");
+	
+	/*********************************************************************/
+	local_irq_save(flags);
+	double_rq_lock(busiest_rq, target_rq);
 
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
-	printk("nr_busiest:%d !!\n",nr_busiest);
-	printk("nr_target:%d !!\n",nr_target);
-    	/* make sure load balance will not reverse */
+	PRINTK("nr_busiest:%d !!\n",nr_busiest);
+	PRINTK("nr_target:%d !!\n",nr_target);
+    	
+	/* make sure load balance will not reverse */
     	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 		/* Here, we will do task moving */
-		printk("I am doing load balancing1!!\n");
+		PRINTK("I am doing load balancing1!!\n");
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 		enqueue_task_grr(target_rq, busiest_rq_task, 1);
-		printk("I am doing load balancing2!!\n");
+		PRINTK("I am doing load balancing2!!\n");
 	
 		/* lock both RQs */
 		/* step 1: pick one task in the busiest rq	*/
@@ -307,9 +319,10 @@ static int grr_load_balance(struct rq *this_rq)
 
     	/* unlock this queue locked at first place */ 
     	//grr_unlock(&this_rq->grr);
-    	printk("I am doing load balancing3!!\n");
-	double_unlock_balance(target_rq, busiest_rq);
-	printk("I am doing load balancing4!!\n");
+	PRINTK("I am doing load balancing 3!!\n");
+	double_rq_unlock(busiest_rq, target_rq);
+	local_irq_restore(flags);
+	PRINTK("I am doing load balancing 4!!\n");
 
 __do_nothing__:
     	return is_task_moved;
@@ -346,11 +359,12 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
 	/* handle the case when rebalance is on */
         if (rq->grr.m_need_balance) {
+		
+		PRINTK("I am doing pre_schedule_grr\n");
                 
 		/* reset the rq variable */
 		rq->grr.m_need_balance = M_FALSE;
 		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
-		printk("I am doing pre_schedule_grr\n");
 
 #if 1
                 /* take care of the rebalance here */
@@ -689,4 +703,3 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
-
