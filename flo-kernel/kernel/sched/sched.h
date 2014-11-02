@@ -6,6 +6,12 @@
 
 #include "cpupri.h"
 
+#if 0
+#define TPRINTK	printk
+#else
+#define TPRINTK(...)
+#endif
+
 extern __read_mostly int scheduler_running;
 
 /*
