@@ -7088,6 +7088,9 @@ void __init sched_init(void)
 		INIT_LIST_HEAD(&rq->leaf_rt_rq_list);
 		init_tg_rt_entry(&root_task_group, &rq->rt, NULL, i, NULL);
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+		init_tg_grr_entry(&root_task_group, &rq->grr, NULL, i, NULL);
+/* END */
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
 			rq->cpu_load[j] = 0;

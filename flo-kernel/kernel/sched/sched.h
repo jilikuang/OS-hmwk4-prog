@@ -208,6 +208,9 @@ extern void init_tg_rt_entry(struct task_group *tg, struct rt_rq *rt_rq,
 extern void free_grr_sched_group(struct task_group *tg);
 extern int alloc_grr_sched_group(
 		struct task_group *tg, struct task_group *parent);
+extern void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
+		struct sched_grr_entity *grr_se, int cpu,
+		struct sched_grr_entity *parent);
 
 #else /* CONFIG_CGROUP_SCHED */
 

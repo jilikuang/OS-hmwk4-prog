@@ -6,7 +6,11 @@
 
 /* Defines */
 /*****************************************************************************/
-#define	PRINTK	printk
+#if 1
+	#define	PRINTK	trace_printk
+#else
+	#define PRINTK(...) do{}while(0)
+#endif
 
 #define BOOL	int
 #define	M_TRUE	1
@@ -80,10 +84,7 @@ void free_grr_sched_group(struct task_group *tg)
 {
 #ifdef CONFIG_SMP
 	int i;
-/*
-	if (tg->grr_se)
-		destroy_rt_bandwidth(&tg->rt_bandwidth);
-*/
+
 	for_each_possible_cpu(i) {
 		if (tg->grr_rq)
 			kfree(tg->grr_rq[i]);
@@ -97,23 +98,24 @@ void free_grr_sched_group(struct task_group *tg)
 }
 
 #ifdef CONFIG_SMP
-static void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
+void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 		struct sched_grr_entity *grr_se, int cpu,
 		struct sched_grr_entity *parent)
 {
 	struct rq *rq = cpu_rq(cpu);
-/*
-	grr_rq->highest_prio.curr = MAX_RT_PRIO;
-	grr_rq->rt_nr_boosted = 0;*/
+
+	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
 	grr_rq->tg = tg;
 
+	/* Attach GRR rq and se to the TG for this CPU */
 	tg->grr_rq[cpu] = grr_rq;
 	tg->grr_se[cpu] = grr_se;
 
 	if (!grr_se)
 		return;
 
+	/* Initialze or inherit GRR rq from rq or parent */
 	if (!parent)
 		grr_se->grr_rq = &rq->grr;
 	else
@@ -137,10 +139,7 @@ int alloc_grr_sched_group(
 	tg->grr_se = kzalloc(sizeof(grr_se) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->grr_se)
 		goto err;
-/*
-	init_rt_bandwidth(&tg->rt_bandwidth,
-			ktime_to_ns(def_rt_bandwidth.rt_period), 0);
-*/
+
 	for_each_possible_cpu(i) {
 		grr_rq = kzalloc_node(sizeof(struct grr_rq),
 				     GFP_KERNEL, cpu_to_node(i));
@@ -152,8 +151,7 @@ int alloc_grr_sched_group(
 		if (!grr_se)
 			goto err_free_rq;
 
-		init_grr_rq(grr_rq, cpu_rq(i));/*
-		grr_rq->rt_runtime = tg->rt_bandwidth.rt_runtime;*/
+		init_grr_rq(grr_rq, cpu_rq(i));
 		init_tg_grr_entry(tg, grr_rq, grr_se, i, parent->grr_se[i]);
 	}
 
@@ -165,6 +163,12 @@ err:
 	return 0;
 }
 #else
+void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
+		struct sched_grr_entity *grr_se, int cpu,
+		struct sched_grr_entity *parent)
+{
+}
+
 int alloc_grr_sched_group(
 		struct task_group *tg, struct task_group *parent)
 {
@@ -257,6 +261,7 @@ static int grr_load_balance(struct rq *this_rq)
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
+	unsigned long flags;
 
 	cpumask_copy(cpus, cpu_active_mask);
 
@@ -266,28 +271,35 @@ static int grr_load_balance(struct rq *this_rq)
 	target_rq = grr_find_least_busiest_queue(cpus);
 	busiest_rq = grr_find_busiest_queue(cpus);
 	if (target_rq == NULL || busiest_rq == NULL)
-		return M_FALSE;
+		goto __do_nothing__;
 	
-	/* @lfred: if I am not the least busiest, just go away. */
-	if (target_rq != this_rq)
+	/* @lfred: if I am not the busiest, just go away. */
+	if (busiest_rq != this_rq)
+		goto __do_nothing__;
+
+	if (busiest_rq == target_rq)
 		goto __do_nothing__;
 
 	/* get least and most busiest queue */
-	printk("I am doing load balancing0!!\n");
-	double_lock_balance(target_rq, busiest_rq);
+	PRINTK("I am doing load balancing0!!\n");
+	
+	/*********************************************************************/
+	local_irq_save(flags);
+	double_rq_lock(busiest_rq, target_rq);
 
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
-	printk("nr_busiest:%d !!\n",nr_busiest);
-	printk("nr_target:%d !!\n",nr_target);
-    	/* make sure load balance will not reverse */
+	PRINTK("nr_busiest:%d !!\n",nr_busiest);
+	PRINTK("nr_target:%d !!\n",nr_target);
+    	
+	/* make sure load balance will not reverse */
     	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 		/* Here, we will do task moving */
-		printk("I am doing load balancing1!!\n");
+		PRINTK("I am doing load balancing1!!\n");
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 		enqueue_task_grr(target_rq, busiest_rq_task, 1);
-		printk("I am doing load balancing2!!\n");
+		PRINTK("I am doing load balancing2!!\n");
 	
 		/* lock both RQs */
 		/* step 1: pick one task in the busiest rq	*/
@@ -305,9 +317,10 @@ static int grr_load_balance(struct rq *this_rq)
 
     	/* unlock this queue locked at first place */ 
     	//grr_unlock(&this_rq->grr);
-    	printk("I am doing load balancing3!!\n");
-	double_unlock_balance(target_rq, busiest_rq);
-	printk("I am doing load balancing4!!\n");
+	PRINTK("I am doing load balancing 3!!\n");
+	double_rq_unlock(busiest_rq, target_rq);
+	local_irq_restore(flags);
+	PRINTK("I am doing load balancing 4!!\n");
 
 __do_nothing__:
     	return is_task_moved;
@@ -344,11 +357,12 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
 	/* handle the case when rebalance is on */
         if (rq->grr.m_need_balance) {
+		
+		PRINTK("I am doing pre_schedule_grr\n");
                 
 		/* reset the rq variable */
 		rq->grr.m_need_balance = M_FALSE;
 		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
-		printk("I am doing pre_schedule_grr\n");
 
 #if 1
                 /* take care of the rebalance here */
@@ -704,4 +718,3 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
-
