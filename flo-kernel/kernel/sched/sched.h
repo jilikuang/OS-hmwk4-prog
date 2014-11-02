@@ -738,6 +738,13 @@ static inline int task_running(struct rq *rq, struct task_struct *p)
 #endif
 }
 
+struct cpu_group_set {
+	unsigned int fg_cpu_end;
+	unsigned int bg_cpu_start;
+	rwlock_t lock;
+};
+
+extern struct cpu_group_set cpu_grp;
 
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)

@@ -4891,6 +4891,8 @@ out_unlock:
 #define FOREGROUND 1
 #define BACKGROUND 2
 
+struct cpu_group_set cpu_grp;
+
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
 	long retval = 0;
@@ -4904,6 +4906,20 @@ SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 
 	if (!(group == FOREGROUND || group == BACKGROUND))
 		return -EINVAL;
+
+	write_lock(&cpu_grp.lock);
+
+	if (group == BACKGROUND) {
+		cpu_grp.bg_cpu_start = nr_cpu_ids - numCPU;
+		if (cpu_grp.fg_cpu_end >= cpu_grp.bg_cpu_start)
+			cpu_grp.fg_cpu_end = cpu_grp.bg_cpu_start - 1;
+	} else {
+		cpu_grp.fg_cpu_end = numCPU - 1;
+		if (cpu_grp.bg_cpu_start <= cpu_grp.fg_cpu_end)
+			cpu_grp.bg_cpu_start = cpu_grp.fg_cpu_end + 1;
+	}
+
+	write_unlock(&cpu_grp.lock);
 #endif
 
 	return retval;
@@ -7026,6 +7042,13 @@ void __init sched_init(void)
 		}
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 	}
+
+	/* Initialize CPU group setting */
+	rwlock_init(&cpu_grp.lock);
+	write_lock(&cpu_grp.lock);
+	cpu_grp.fg_cpu_end = 1;
+	cpu_grp.bg_cpu_start = 2;
+	write_unlock(&cpu_grp.lock);
 
 	tg_sys = &root_task_group;
 
