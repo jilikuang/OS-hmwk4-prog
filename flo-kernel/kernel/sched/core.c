@@ -289,7 +289,24 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+static struct task_group *tg_sys;
+static struct task_group *tg_fg;
+static struct task_group *tg_bg;
 
+int is_tg_sys(struct task_group *tg)
+{
+	return (tg == tg_sys);
+}
+
+int is_tg_fg(struct task_group *tg)
+{
+	return (tg == tg_fg);
+}
+
+int is_tg_bg(struct task_group *tg)
+{
+	return (tg == tg_bg);
+}
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
@@ -7010,6 +7027,8 @@ void __init sched_init(void)
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 	}
 
+	tg_sys = &root_task_group;
+
 #ifdef CONFIG_SMP
 	init_defrootdomain();
 #endif
@@ -7333,6 +7352,11 @@ struct task_group *sched_create_group(struct task_group *parent)
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
+
+	if (parent == tg_sys)
+		tg_fg = tg;
+	else if (parent == tg_fg)
+		tg_bg = tg;
 
 	if (!alloc_fair_sched_group(tg, parent))
 		goto err;

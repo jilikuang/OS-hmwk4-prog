@@ -60,6 +60,10 @@ static inline int grr_policy(int policy)
 	return (policy == SCHED_GRR) ? 1 : 0;
 }
 
+extern int is_tg_sys(struct task_group *tg);
+extern int is_tg_fg(struct task_group *tg);
+extern int is_tg_bg(struct task_group *tg);
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */
