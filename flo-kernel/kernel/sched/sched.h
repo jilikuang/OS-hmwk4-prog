@@ -84,6 +84,7 @@ extern struct mutex sched_domains_mutex;
 
 struct cfs_rq;
 struct rt_rq;
+struct grr_rq;
 
 static LIST_HEAD(task_groups);
 
@@ -422,6 +423,9 @@ struct rq {
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct list_head leaf_rt_rq_list;
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+	struct list_head leaf_grr_rq_list;
+/* END */
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -619,6 +623,10 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 	p->rt.rt_rq  = tg->rt_rq[cpu];
 	p->rt.parent = tg->rt_se[cpu];
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+	p->grr.grr_rq = tg->grr_rq[cpu];
+	p->grr.parent = tg->grr_se[cpu];
+/* END */
 }
 
 #else /* CONFIG_CGROUP_SCHED */
