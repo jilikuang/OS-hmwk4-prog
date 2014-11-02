@@ -6,7 +6,11 @@
 
 /* Defines */
 /*****************************************************************************/
-#define	PRINTK	printk
+#if 1
+	#define	PRINTK	trace_printk
+#else
+	#define PRINTK(...) do{}while(0)
+#endif
 
 #define BOOL	int
 #define	M_TRUE	1
@@ -17,10 +21,8 @@
 #ifdef CONFIG_SMP
 static int grr_load_balance(struct rq *this_rq);
 static struct task_struct *pick_next_task_grr(struct rq *rq);
-static void
-enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags);
-static void
-dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags);
+static void enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags);
+static void dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags);
 #endif	/* CONFIG_SMP */
 
 /* Global variables */
@@ -102,7 +104,7 @@ void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
-	trace_printk("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
+	TPRINTK("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
 
 	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
@@ -261,6 +263,7 @@ static int grr_load_balance(struct rq *this_rq)
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
+	unsigned long flags;
 
 	cpumask_copy(cpus, cpu_active_mask);
 
@@ -270,28 +273,35 @@ static int grr_load_balance(struct rq *this_rq)
 	target_rq = grr_find_least_busiest_queue(cpus);
 	busiest_rq = grr_find_busiest_queue(cpus);
 	if (target_rq == NULL || busiest_rq == NULL)
-		return M_FALSE;
+		goto __do_nothing__;
 	
-	/* @lfred: if I am not the least busiest, just go away. */
-	if (target_rq != this_rq)
+	/* @lfred: if I am not the busiest, just go away. */
+	if (busiest_rq != this_rq)
+		goto __do_nothing__;
+
+	if (busiest_rq == target_rq)
 		goto __do_nothing__;
 
 	/* get least and most busiest queue */
-	printk("I am doing load balancing0!!\n");
-	double_lock_balance(target_rq, busiest_rq);
+	PRINTK("I am doing load balancing0!!\n");
+	
+	/*********************************************************************/
+	local_irq_save(flags);
+	double_rq_lock(busiest_rq, target_rq);
 
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
-	printk("nr_busiest:%d !!\n",nr_busiest);
-	printk("nr_target:%d !!\n",nr_target);
-    	/* make sure load balance will not reverse */
+	PRINTK("nr_busiest:%d !!\n",nr_busiest);
+	PRINTK("nr_target:%d !!\n",nr_target);
+    	
+	/* make sure load balance will not reverse */
     	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
 		/* Here, we will do task moving */
-		printk("I am doing load balancing1!!\n");
+		PRINTK("I am doing load balancing1!!\n");
 		busiest_rq_task = pick_next_task_grr(busiest_rq);
 		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
 		enqueue_task_grr(target_rq, busiest_rq_task, 1);
-		printk("I am doing load balancing2!!\n");
+		PRINTK("I am doing load balancing2!!\n");
 	
 		/* lock both RQs */
 		/* step 1: pick one task in the busiest rq	*/
@@ -309,9 +319,10 @@ static int grr_load_balance(struct rq *this_rq)
 
     	/* unlock this queue locked at first place */ 
     	//grr_unlock(&this_rq->grr);
-    	printk("I am doing load balancing3!!\n");
-	double_unlock_balance(target_rq, busiest_rq);
-	printk("I am doing load balancing4!!\n");
+	PRINTK("I am doing load balancing 3!!\n");
+	double_rq_unlock(busiest_rq, target_rq);
+	local_irq_restore(flags);
+	PRINTK("I am doing load balancing 4!!\n");
 
 __do_nothing__:
     	return is_task_moved;
@@ -348,11 +359,12 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
 	/* handle the case when rebalance is on */
         if (rq->grr.m_need_balance) {
+		
+		PRINTK("I am doing pre_schedule_grr\n");
                 
 		/* reset the rq variable */
 		rq->grr.m_need_balance = M_FALSE;
 		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
-		printk("I am doing pre_schedule_grr\n");
 
 #if 1
                 /* take care of the rebalance here */
@@ -367,6 +379,23 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 	return task_cpu(p);
 }
 
+/* TODO: should we manage the re-schedule? */
+static void
+set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
+{
+	struct cpumask dstp;
+
+	cpumask_and(&dstp, &(t->cpus_allowed), mask);
+
+	if (cpumask_first(&dstp) == 0) {
+		/* Fucka - you got no CPU to run */
+		/* No where to move !? */
+		BUG();
+	} else {
+		/* We have CPU to run.  */
+	}
+}
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -377,10 +406,23 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct task_group *tg = task_group(p);
-	struct sched_grr_entity *grp_se = p->grr.parent;
-
-	trace_printk("engueue_task_grr: tg = 0x%X\n", tg);
+#ifdef CONFIG_SMP
+	read_lock(&cpu_grp.lock);
+	if (is_tg_bg(task_group(p))) {
+		if (task_cpu(p) < cpu_grp.bg_cpu_start)
+			TPRINTK("%d bg! Should not enqueue %d!\n",
+					task_pid_nr(p),
+					smp_processor_id());
+	} else if (is_tg_sys(task_group(p)) || is_tg_fg(task_group(p))) {
+		if (task_cpu(p) > cpu_grp.fg_cpu_end)
+			TPRINTK("%d sys/fg! Should not enqueue %d!\n",
+					task_pid_nr(p),
+					smp_processor_id());
+	} else {
+		TPRINTK("%d isolated!\n", task_pid_nr(p));
+	}
+	read_unlock(&cpu_grp.lock);
+#endif
 
 	grr_reset_se(&(p->grr));
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));
@@ -388,14 +430,7 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	/* critical section */
 	grr_lock(&rq->grr);
 
-	if (grp_se) {
-		list_add_tail(&(p->grr.m_rq_list), &(grp_se->my_q->m_task_q));
-		grp_se->my_q->m_nr_running++;
-		if (!is_on_grr_rq(grp_se))
-			list_add_tail(&(grp_se->m_rq_list), &(rq->grr.m_task_q));
-	} else {
-		list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
-	}
+	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
 	rq->grr.m_nr_running++;	
 
 	grr_unlock(&rq->grr);
@@ -412,18 +447,10 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct task_group *tg = task_group(p);
-	struct sched_grr_entity *grp_se = p->grr.parent;
-
-	trace_printk("degueue_task_grr: tg = 0x%X\n", tg);
-
 	/* critical section */
 	grr_lock(&rq->grr);
 
 	list_del_init(&(p->grr.m_rq_list));
-	if (grp_se)
-		if (!(--grp_se->my_q->m_nr_running))
-			list_del_init(&grp_se->m_rq_list);
 	rq->grr.m_nr_running--;	
 
 	grr_unlock(&rq->grr);
@@ -500,6 +527,25 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 				&(rq->grr.m_task_q), 
 				struct sched_grr_entity, 
 				m_rq_list));   
+
+#ifdef CONFIG_SMP
+		read_lock(&cpu_grp.lock);
+		if (is_tg_bg(task_group(p))) {
+			if (task_cpu(p) < cpu_grp.bg_cpu_start)
+				TPRINTK("%d bg! Should not next %d!\n",
+						task_pid_nr(p),
+						smp_processor_id());
+		} else if (is_tg_sys(task_group(p)) ||
+				is_tg_fg(task_group(p))) {
+			if (task_cpu(p) > cpu_grp.fg_cpu_end)
+				TPRINTK("%d sys/fg! Should not next %d!\n",
+						task_pid_nr(p),
+						smp_processor_id());
+		} else {
+			TPRINTK("%d isolated!\n", task_pid_nr(p));
+		}
+		read_unlock(&cpu_grp.lock);
+#endif
 	
 		/* reset the running vars */	
 		grr_reset_se(&(p->grr));
@@ -510,7 +556,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
-	
+
 	return p; 
 }
 
@@ -683,9 +729,9 @@ const struct sched_class grr_sched_class = {
 #ifdef CONFIG_SMP
 	.pre_schedule		= pre_schedule_grr,
 	.select_task_rq		= select_task_rq_grr,
+	.set_cpus_allowed	= set_cpus_allowed_grr, 
 
 #if 0
-	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
 	void (*set_cpus_allowed)(struct task_struct*, const struct cpumask*);
 
@@ -711,4 +757,3 @@ const struct sched_class grr_sched_class = {
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
-

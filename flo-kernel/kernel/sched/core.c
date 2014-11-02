@@ -289,7 +289,24 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+static struct task_group *tg_sys;
+static struct task_group *tg_fg;
+static struct task_group *tg_bg;
 
+int is_tg_sys(struct task_group *tg)
+{
+	return (tg == tg_sys);
+}
+
+int is_tg_fg(struct task_group *tg)
+{
+	return (tg == tg_fg);
+}
+
+int is_tg_bg(struct task_group *tg)
+{
+	return (tg == tg_bg);
+}
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
@@ -1784,7 +1801,9 @@ void sched_fork(struct task_struct *p)
 		p->sched_reset_on_fork = 0;
 	}
 
-	if (!rt_prio(p->prio))
+	if (p->policy == 6)
+		p->sched_class = &grr_sched_class;
+	else if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
 
 	if (p->sched_class->task_fork)
@@ -3869,6 +3888,8 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	if (rt_prio(prio))
 		p->sched_class = &rt_sched_class;
+	else if (p->policy == 6)
+		p->sched_class = &grr_sched_class;
 	else
 		p->sched_class = &fair_sched_class;
 
@@ -4870,6 +4891,8 @@ out_unlock:
 #define FOREGROUND 1
 #define BACKGROUND 2
 
+struct cpu_group_set cpu_grp;
+
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
 	long retval = 0;
@@ -4883,6 +4906,20 @@ SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 
 	if (!(group == FOREGROUND || group == BACKGROUND))
 		return -EINVAL;
+
+	write_lock(&cpu_grp.lock);
+
+	if (group == BACKGROUND) {
+		cpu_grp.bg_cpu_start = nr_cpu_ids - numCPU;
+		if (cpu_grp.fg_cpu_end >= cpu_grp.bg_cpu_start)
+			cpu_grp.fg_cpu_end = cpu_grp.bg_cpu_start - 1;
+	} else {
+		cpu_grp.fg_cpu_end = numCPU - 1;
+		if (cpu_grp.bg_cpu_start <= cpu_grp.fg_cpu_end)
+			cpu_grp.bg_cpu_start = cpu_grp.fg_cpu_end + 1;
+	}
+
+	write_unlock(&cpu_grp.lock);
 #endif
 
 	return retval;
@@ -4954,15 +4991,9 @@ void show_state_filter(unsigned long state_filter)
 		debug_show_all_locks();
 }
 
-/* @lfred changed */
 void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 {
-#if 1
 	idle->sched_class = &idle_sched_class;
-#else
-	idle->sched_class = &idle_sched_class;
-	idle->policy = 6;
-#endif
 }
 
 /**
@@ -7012,6 +7043,15 @@ void __init sched_init(void)
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 	}
 
+	/* Initialize CPU group setting */
+	rwlock_init(&cpu_grp.lock);
+	write_lock(&cpu_grp.lock);
+	cpu_grp.fg_cpu_end = 1;
+	cpu_grp.bg_cpu_start = 2;
+	write_unlock(&cpu_grp.lock);
+
+	tg_sys = &root_task_group;
+
 #ifdef CONFIG_SMP
 	init_defrootdomain();
 #endif
@@ -7142,10 +7182,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	/* @lfred: we changed here */
-	current->sched_class = &grr_sched_class;
-	current->policy = 6;
-	/* end */
+	current->sched_class = &fair_sched_class;
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7338,6 +7375,11 @@ struct task_group *sched_create_group(struct task_group *parent)
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
+
+	if (parent == tg_sys)
+		tg_fg = tg;
+	else if (parent == tg_fg)
+		tg_bg = tg;
 
 	if (!alloc_fair_sched_group(tg, parent))
 		goto err;

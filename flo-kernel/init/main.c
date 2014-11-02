@@ -79,6 +79,9 @@
 #include <asm/smp.h>
 #endif
 
+/* @lfred */
+extern const struct sched_class grr_sched_class;
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -380,6 +383,7 @@ static noinline void __init_refok rest_init(void)
 	 * The boot idle thread must execute schedule()
 	 * at least once to get things moving:
 	 */
+	printk ("@lfred: current: %d\n", current->pid);
 	init_idle_bootup_task(current);
 	schedule_preempt_disabled();
 	/* Call into cpu_idle with preempt disabled */

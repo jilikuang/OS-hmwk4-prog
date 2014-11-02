@@ -21,6 +21,7 @@
 
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
+extern const struct sched_class grr_sched_class;
 
 #ifdef CONFIG_CGROUPS
 #define INIT_GROUP_RWSEM(sig)						\
@@ -147,7 +148,8 @@ extern struct cred init_cred;
 	.prio		= MAX_PRIO-20,					\
 	.static_prio	= MAX_PRIO-20,					\
 	.normal_prio	= MAX_PRIO-20,					\
-	.policy		= SCHED_NORMAL,					\
+	.policy		= 6,						\
+	.sched_class	= &grr_sched_class,				\
 	.cpus_allowed	= CPU_MASK_ALL,					\
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\
@@ -158,6 +160,15 @@ extern struct cred init_cred;
 		.run_list	= LIST_HEAD_INIT(tsk.rt.run_list),	\
 		.time_slice	= RR_TIMESLICE,				\
 		.nr_cpus_allowed = NR_CPUS,				\
+	},								\
+	.grr		= {						\
+		.m_time_slice	= 10,					\
+        	.m_cpu_history	= 0,					\
+        	.m_is_timeup	= 0,					\
+        	.m_rq_list	= LIST_HEAD_INIT(tsk.grr.m_rq_list),	\
+        	.parent		= NULL,					\
+        	.grr_rq		= NULL,					\
+        	.my_q		= NULL,					\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
 	INIT_PUSHABLE_TASKS(tsk)					\

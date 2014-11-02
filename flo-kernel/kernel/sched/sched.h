@@ -6,6 +6,12 @@
 
 #include "cpupri.h"
 
+#if 1
+#define TPRINTK	trace_printk
+#else
+#define TPRINTK(...)
+#endif
+
 extern __read_mostly int scheduler_running;
 
 /*
@@ -59,6 +65,10 @@ static inline int grr_policy(int policy)
 {
 	return (policy == SCHED_GRR) ? 1 : 0;
 }
+
+extern int is_tg_sys(struct task_group *tg);
+extern int is_tg_fg(struct task_group *tg);
+extern int is_tg_bg(struct task_group *tg);
 
 /*
  * This is the priority-queue data structure of the RT scheduling class:
@@ -734,6 +744,13 @@ static inline int task_running(struct rq *rq, struct task_struct *p)
 #endif
 }
 
+struct cpu_group_set {
+	unsigned int fg_cpu_end;
+	unsigned int bg_cpu_start;
+	rwlock_t lock;
+};
+
+extern struct cpu_group_set cpu_grp;
 
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)
