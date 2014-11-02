@@ -17,10 +17,8 @@
 #ifdef CONFIG_SMP
 static int grr_load_balance(struct rq *this_rq);
 static struct task_struct *pick_next_task_grr(struct rq *rq);
-static void
-enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags);
-static void
-dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags);
+static void enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags);
+static void dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags);
 #endif	/* CONFIG_SMP */
 
 /* Global variables */
@@ -365,6 +363,23 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 	return task_cpu(p);
 }
 
+/* TODO: should we manage the re-schedule? */
+static void
+set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
+{
+	struct cpumask dstp;
+
+	cpumask_and(&dstp, &(t->cpus_allowed), mask);
+
+	if (cpumask_first(&dstp) == 0) {
+		/* Fucka - you got no CPU to run */
+		/* No where to move !? */
+		BUG();
+	} else {
+		/* We have CPU to run.  */
+	}
+}
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -661,9 +676,9 @@ const struct sched_class grr_sched_class = {
 #ifdef CONFIG_SMP
 	.pre_schedule		= pre_schedule_grr,
 	.select_task_rq		= select_task_rq_grr,
+	.set_cpus_allowed	= set_cpus_allowed_grr, 
 
 #if 0
-	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
 	void (*set_cpus_allowed)(struct task_struct*, const struct cpumask*);
 
