@@ -1784,7 +1784,9 @@ void sched_fork(struct task_struct *p)
 		p->sched_reset_on_fork = 0;
 	}
 
-	if (!rt_prio(p->prio))
+	if (p->policy == 6)
+		p->sched_class = &grr_sched_class;
+	else if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
 
 	if (p->sched_class->task_fork)
@@ -3869,6 +3871,8 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	if (rt_prio(prio))
 		p->sched_class = &rt_sched_class;
+	else if (p->policy == 6)
+		p->sched_class = &grr_sched_class;
 	else
 		p->sched_class = &fair_sched_class;
 
@@ -4954,17 +4958,9 @@ void show_state_filter(unsigned long state_filter)
 		debug_show_all_locks();
 }
 
-/* @lfred changed */
 void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 {
-	printk ("@lfred: init_idle_bootup_task: %d\n", idle->pid);
-
-#if 1
 	idle->sched_class = &idle_sched_class;
-#else
-	idle->sched_class = &grr_sched_class;
-	idle->policy = 6;
-#endif
 }
 
 /**
@@ -5013,13 +5009,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	/*
 	 * The idle tasks have their own, simple scheduling class:
 	 */
-#if 1
 	idle->sched_class = &idle_sched_class;
-#else
-	printk ("@lfred init_idle: %d\n", idle->pid);
-	idle->sched_class = &grr_sched_class;
-	idle->policy = 6;
-#endif
 
 	ftrace_graph_init_idle_task(idle, cpu);
 #if defined(CONFIG_SMP)

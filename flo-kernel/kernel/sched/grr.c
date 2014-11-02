@@ -517,7 +517,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
-	
+
 	return p; 
 }
 

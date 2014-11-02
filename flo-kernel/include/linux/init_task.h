@@ -21,6 +21,7 @@
 
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
+extern const struct sched_class grr_sched_class;
 
 #ifdef CONFIG_CGROUPS
 #define INIT_GROUP_RWSEM(sig)						\
@@ -148,6 +149,7 @@ extern struct cred init_cred;
 	.static_prio	= MAX_PRIO-20,					\
 	.normal_prio	= MAX_PRIO-20,					\
 	.policy		= 6,						\
+	.sched_class	= &grr_sched_class,				\
 	.cpus_allowed	= CPU_MASK_ALL,					\
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\

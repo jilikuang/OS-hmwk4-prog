@@ -79,6 +79,9 @@
 #include <asm/smp.h>
 #endif
 
+/* @lfred */
+extern const struct sched_class grr_sched_class;
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
