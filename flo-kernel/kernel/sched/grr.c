@@ -104,6 +104,8 @@ void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
+	trace_printk("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
+
 	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
 	grr_rq->tg = tg;
@@ -404,13 +406,25 @@ set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
+	struct task_group *tg = task_group(p);
+	struct sched_grr_entity *grp_se = p->grr.parent;
+
+	trace_printk("engueue_task_grr: tg = 0x%X\n", tg);
+
 	grr_reset_se(&(p->grr));
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));
 
 	/* critical section */
 	grr_lock(&rq->grr);
-	
-	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+
+	if (grp_se) {
+		list_add_tail(&(p->grr.m_rq_list), &(grp_se->my_q->m_task_q));
+		grp_se->my_q->m_nr_running++;
+		if (!is_on_grr_rq(grp_se))
+			list_add_tail(&(grp_se->m_rq_list), &(rq->grr.m_task_q));
+	} else {
+		list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
+	}
 	rq->grr.m_nr_running++;	
 
 	grr_unlock(&rq->grr);
@@ -427,10 +441,18 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
+	struct task_group *tg = task_group(p);
+	struct sched_grr_entity *grp_se = p->grr.parent;
+
+	trace_printk("degueue_task_grr: tg = 0x%X\n", tg);
+
 	/* critical section */
 	grr_lock(&rq->grr);
 
 	list_del_init(&(p->grr.m_rq_list));
+	if (grp_se)
+		if (!(--grp_se->my_q->m_nr_running))
+			list_del_init(&grp_se->m_rq_list);
 	rq->grr.m_nr_running--;	
 
 	grr_unlock(&rq->grr);
