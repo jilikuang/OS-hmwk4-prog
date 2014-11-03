@@ -274,12 +274,26 @@ static BOOL can_we_balance_on_the_cpu(struct sched_group *sg, int cpu)
 /* pick one of the eligible task from the source q to move */
 static struct task_struct *pick_eligible_task(
 	struct rq *src_rq,
-	struct sched_group *sg,
-	int dst_cpu) 
+	struct rq *dst_rq) 
 {
+	struct list_head *pos = NULL;
+	struct task_struct *tsk = NULL;
+	int dst_cpu = dst_rq->cpu;
 
-	//for_each_
+	list_for_each(pos, &(src_rq->grr.m_task_q)) {
+		
+		tsk = task_of_se(container_of(pos, struct sched_grr_entity, m_rq_list));
 
+		if (tsk == src_rq->curr || tsk->policy != 6)
+			continue;	
+	
+		if (cpumask_test_cpu(dst_cpu, tsk->cpus_allowed)) {
+ 			printk ("@lfred: tsk %d is selected\n", tsk->pid);
+			return tsk;
+		}
+	}
+
+	printk ("@lfred: no tasks is allowed to migrate");
 	return NULL;
 }
 
@@ -329,24 +343,17 @@ static int grr_load_balance(struct rq *this_rq)
 	//printk ("@lfred: busiest_rq = %d, ntask = %ld\n", busiest_rq->cpu, busiest_rq->grr.m_nr_running);
 	
 	// TO enable
-	//pick_eligible_task ();
-#if 1
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
 	
 	/* make sure load balance will not reverse */
-    	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
+    	if (nr_busiest > 1 && nr_busiest - nr_target > 1) {
 		
 		/* Here, we will do task moving */
-		struct list_head *tlist = busiest_rq->grr.m_task_q.next->next;
-		busiest_rq_task = task_of_se(container_of(tlist, struct sched_grr_entity, m_rq_list));
-		
-		if (busiest_rq_task->policy != 6 || busiest_rq_task == busiest_rq->curr)
-			goto __do_nothing__;
-	
-		/* TODO: check if you can migrate or not */
-	
-		//printk("@lfred: pick %d from cpu %d to cpu %d\n", busiest_rq_task->pid, busiest_rq->cpu, target_rq->cpu);
+		busiest_rq_task = pick_eligible_task(busiest_rq, target_rq);
+
+		if (busiest_rq_task == NULL)
+			goto __do_nothing__;		
 
 		/* dequeue */
 		list_del(tlist);
@@ -365,7 +372,6 @@ static int grr_load_balance(struct rq *this_rq)
 		/* return true flag */
 		is_task_moved = M_TRUE;    
 	}
-#endif
 
 __do_nothing__:
 	double_unlock_balance(busiest_rq, target_rq);
