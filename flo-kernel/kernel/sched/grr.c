@@ -20,7 +20,7 @@
 #define M_FALSE	0
 
 #define check_rq_size(rq) \
-		check_rq_size_func(rq,__func__)
+		check_rq_size_func(rq,__func__,__LINE__)
 /* Prototypes */
 /*****************************************************************************/
 #ifdef CONFIG_SMP
@@ -51,14 +51,14 @@ static inline int count_rq_size(struct rq *rq)
 }
 
 /* debugging function: check the grr.m_nr_running is correct */
-static inline BOOL check_rq_size_func(struct rq *rq, char const* func)
+static inline BOOL check_rq_size_func(struct rq *rq, char const* func, int ln)
 {
 #ifdef GRR_DEBUG
 	if (count_rq_size(rq) == rq->grr.m_nr_running) {
-		printk("@lfred: check_rq_size passed @ %s\n", func);
+		printk("@lfred: check_rq_size passed @ %s:%d\n", func, ln);
 		return M_TRUE;
 	} else {
-		printk("@lfred: check_rq_size failed @ %s\n", func);
+		printk("@lfred: check_rq_size failed @ %s:%d\n", func, ln);
 		BUG();
 		return M_FALSE;
 	}
@@ -580,6 +580,8 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	if (!rq->nr_running)
 		return NULL;
 
+	check_rq_size(rq);
+	
 	/* critical section */
 	grr_lock(&rq->grr);
 
