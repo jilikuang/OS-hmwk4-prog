@@ -562,7 +562,31 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	if (!rq->nr_running)
 		return NULL;
+#if 1
+	spin_lock(&grr_grp_mq_lock);
+	if (!list_empty(&grr_grp_mq)) {
+		struct list_head *pos;
 
+		TPRINTK("Something on the list!\n");
+		list_for_each(pos, &grr_grp_mq) {
+			struct task_struct *tsk;
+
+			tsk = task_of_se(list_entry(pos,
+						struct sched_grr_entity,
+						m_rq_list));
+			if (task_valid_on_cpu(tsk, rq->cpu)) {
+				TPRINTK("remove %d from mq to %d\n",
+						tsk->pid,
+						rq->cpu);
+				list_del_init(pos);
+				set_task_rq(tsk, rq);
+				enqueue_task_grr(rq, tsk, 0);
+				break;
+			}
+		}
+	}
+	spin_unlock(&grr_grp_mq_lock);
+#endif
 	/* critical section */
 	grr_lock(&rq->grr);
 
@@ -647,8 +671,20 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 			break;
 		}
 	}*/
-	if (is_on_grr_rq(&prev->grr))
+	if (is_on_grr_rq(&prev->grr)) {
+#if 1
+		if (!task_valid_on_cpu(prev, rq->cpu)) {
+			dequeue_task_grr(rq, prev, 0);
+			spin_lock(&grr_grp_mq_lock);
+			list_add_tail(t, &grr_grp_mq);
+			spin_unlock(&grr_grp_mq_lock);
+		} else {
+			list_move_tail(t, taskq);
+		}
+#else
 		list_move_tail(t, taskq);
+#endif
+	}
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
