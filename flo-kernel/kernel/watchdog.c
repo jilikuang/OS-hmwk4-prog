@@ -475,7 +475,7 @@ out:
 
 static void watchdog_disable(int cpu)
 {
-#if 0
+
 	struct task_struct *p = per_cpu(softlockup_watchdog, cpu);
 	struct hrtimer *hrtimer = &per_cpu(watchdog_hrtimer, cpu);
 
@@ -493,7 +493,6 @@ static void watchdog_disable(int cpu)
 		per_cpu(softlockup_watchdog, cpu) = NULL;
 		kthread_stop(p);
 	}
-#endif
 }
 
 /* sysctl functions */
@@ -503,7 +502,7 @@ static void watchdog_enable_all_cpus(void)
 	int cpu;
 
 	watchdog_enabled = 0;
-
+	watchdog_disable();
 #if 0
 	for_each_online_cpu(cpu)
 		if (!watchdog_enable(cpu))
@@ -560,6 +559,7 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
 
+#if 0
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
@@ -581,6 +581,9 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 #endif /* CONFIG_HOTPLUG_CPU */
 	}
+#else
+	watchdog_disable(hotcpu);
+#endif
 
 	/*
 	 * hardlockup and softlockup are not important enough
