@@ -127,6 +127,8 @@ void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
+	TPRINTK("@@@@@ init_tg_grr_entry tg 0x%X grrrq 0x%X grrse 0x%X cpu %d parent 0x%X\n", tg, grr_rq, grr_se, cpu, parent);
+
 	/* Set up info of GRR rq for the TG on this CPU */
 	grr_rq->rq = rq;
 	grr_rq->tg = tg;
@@ -423,12 +425,30 @@ set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
+#ifdef CONFIG_SMP
+	read_lock(&cpu_grp.lock);
+	if (is_tg_bg(task_group(p))) {
+		if (task_cpu(p) < cpu_grp.bg_cpu_start)
+			TPRINTK("%d bg! Should not enqueue %d!\n",
+					task_pid_nr(p),
+					smp_processor_id());
+	} else if (is_tg_sys(task_group(p)) || is_tg_fg(task_group(p))) {
+		if (task_cpu(p) > cpu_grp.fg_cpu_end)
+			TPRINTK("%d sys/fg! Should not enqueue %d!\n",
+					task_pid_nr(p),
+					smp_processor_id());
+	} else {
+		TPRINTK("%d isolated!\n", task_pid_nr(p));
+	}
+	read_unlock(&cpu_grp.lock);
+#endif
+
 	grr_reset_se(&(p->grr));
 	INIT_LIST_HEAD(&(p->grr.m_rq_list));
 
 	/* critical section */
 	grr_lock(&rq->grr);
-	
+
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
 	rq->grr.m_nr_running++;	
 
@@ -526,6 +546,25 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 				&(rq->grr.m_task_q), 
 				struct sched_grr_entity, 
 				m_rq_list));   
+
+#ifdef CONFIG_SMP
+		read_lock(&cpu_grp.lock);
+		if (is_tg_bg(task_group(p))) {
+			if (task_cpu(p) < cpu_grp.bg_cpu_start)
+				TPRINTK("%d bg! Should not next %d!\n",
+						task_pid_nr(p),
+						smp_processor_id());
+		} else if (is_tg_sys(task_group(p)) ||
+				is_tg_fg(task_group(p))) {
+			if (task_cpu(p) > cpu_grp.fg_cpu_end)
+				TPRINTK("%d sys/fg! Should not next %d!\n",
+						task_pid_nr(p),
+						smp_processor_id());
+		} else {
+			TPRINTK("%d isolated!\n", task_pid_nr(p));
+		}
+		read_unlock(&cpu_grp.lock);
+#endif
 	
 		/* reset the running vars */	
 		grr_reset_se(&(p->grr));

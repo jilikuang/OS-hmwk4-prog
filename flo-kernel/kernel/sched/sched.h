@@ -6,6 +6,12 @@
 
 #include "cpupri.h"
 
+#if 1
+#define TPRINTK	trace_printk
+#else
+#define TPRINTK(...)
+#endif
+
 extern __read_mostly int scheduler_running;
 
 /*
@@ -60,6 +66,10 @@ static inline int grr_policy(int policy)
 	return (policy == SCHED_GRR) ? 1 : 0;
 }
 
+extern int is_tg_sys(struct task_group *tg);
+extern int is_tg_fg(struct task_group *tg);
+extern int is_tg_bg(struct task_group *tg);
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */
@@ -84,6 +94,7 @@ extern struct mutex sched_domains_mutex;
 
 struct cfs_rq;
 struct rt_rq;
+struct grr_rq;
 
 static LIST_HEAD(task_groups);
 
@@ -422,6 +433,9 @@ struct rq {
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct list_head leaf_rt_rq_list;
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+	struct list_head leaf_grr_rq_list;
+/* END */
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -619,6 +633,10 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 	p->rt.rt_rq  = tg->rt_rq[cpu];
 	p->rt.parent = tg->rt_se[cpu];
 #endif
+/* CONFIG_GRR_GROUP_SCHED */
+	p->grr.grr_rq = tg->grr_rq[cpu];
+	p->grr.parent = tg->grr_se[cpu];
+/* END */
 }
 
 #else /* CONFIG_CGROUP_SCHED */
@@ -726,6 +744,13 @@ static inline int task_running(struct rq *rq, struct task_struct *p)
 #endif
 }
 
+struct cpu_group_set {
+	unsigned int fg_cpu_end;
+	unsigned int bg_cpu_start;
+	rwlock_t lock;
+};
+
+extern struct cpu_group_set cpu_grp;
 
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)

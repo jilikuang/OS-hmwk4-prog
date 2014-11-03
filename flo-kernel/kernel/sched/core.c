@@ -289,7 +289,24 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+static struct task_group *tg_sys;
+static struct task_group *tg_fg;
+static struct task_group *tg_bg;
 
+int is_tg_sys(struct task_group *tg)
+{
+	return (tg == tg_sys);
+}
+
+int is_tg_fg(struct task_group *tg)
+{
+	return (tg == tg_fg);
+}
+
+int is_tg_bg(struct task_group *tg)
+{
+	return (tg == tg_bg);
+}
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
@@ -4875,6 +4892,8 @@ out_unlock:
 #define FOREGROUND 1
 #define BACKGROUND 2
 
+struct cpu_group_set cpu_grp;
+
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
 	long retval = 0;
@@ -4888,6 +4907,20 @@ SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 
 	if (!(group == FOREGROUND || group == BACKGROUND))
 		return -EINVAL;
+
+	write_lock(&cpu_grp.lock);
+
+	if (group == BACKGROUND) {
+		cpu_grp.bg_cpu_start = nr_cpu_ids - numCPU;
+		if (cpu_grp.fg_cpu_end >= cpu_grp.bg_cpu_start)
+			cpu_grp.fg_cpu_end = cpu_grp.bg_cpu_start - 1;
+	} else {
+		cpu_grp.fg_cpu_end = numCPU - 1;
+		if (cpu_grp.bg_cpu_start <= cpu_grp.fg_cpu_end)
+			cpu_grp.bg_cpu_start = cpu_grp.fg_cpu_end + 1;
+	}
+
+	write_unlock(&cpu_grp.lock);
 #endif
 
 	return retval;
@@ -7011,6 +7044,15 @@ void __init sched_init(void)
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 	}
 
+	/* Initialize CPU group setting */
+	rwlock_init(&cpu_grp.lock);
+	write_lock(&cpu_grp.lock);
+	cpu_grp.fg_cpu_end = 1;
+	cpu_grp.bg_cpu_start = 2;
+	write_unlock(&cpu_grp.lock);
+
+	tg_sys = &root_task_group;
+
 #ifdef CONFIG_SMP
 	init_defrootdomain();
 #endif
@@ -7334,6 +7376,11 @@ struct task_group *sched_create_group(struct task_group *parent)
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
+
+	if (parent == tg_sys)
+		tg_fg = tg;
+	else if (parent == tg_fg)
+		tg_bg = tg;
 
 	if (!alloc_fair_sched_group(tg, parent))
 		goto err;

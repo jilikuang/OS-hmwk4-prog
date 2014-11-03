@@ -5442,6 +5442,8 @@ void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
+	TPRINTK("@@@@@ init_tg_cfs_entry tg 0x%X cfsrq 0x%X cfsse 0x%X cpu %d parent 0x%X\n", tg, cfs_rq, se, cpu, parent);
+
 	cfs_rq->tg = tg;
 	cfs_rq->rq = rq;
 #ifdef CONFIG_SMP
