@@ -14,9 +14,6 @@
 	#define PRINTK(...) do{}while(0)
 #endif
 
-//#undef M_GRR_REBALANCE
-//#define M_GRR_REBALANCE 100*45
-
 #define BOOL	int
 #define	M_TRUE	1
 #define M_FALSE	0
@@ -418,7 +415,7 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 {
 	grr_rq->mp_rq = rq;
 	grr_rq->m_nr_running = 0;
-	grr_rq->m_rebalance_cnt = M_GRR_REBALANCE;
+	grr_rq->m_rebalance_cnt = M_GRR_INIT_REBALANCE;
 	INIT_LIST_HEAD(&grr_rq->m_task_q);
 	raw_spin_lock_init(&grr_rq->m_runtime_lock);
 }
