@@ -335,6 +335,7 @@ static int grr_load_balance(struct rq *this_rq)
 	int nr_busiest = 0, nr_target = 0;	
 	int this_cpu = this_rq->cpu;
 	unsigned long flags;
+	struct list_head *tlist = NULL;
 
 	cpumask_copy(cpus, cpu_active_mask);
 
