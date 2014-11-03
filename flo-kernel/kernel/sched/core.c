@@ -3871,6 +3871,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	if (rt_prio(prio))
 		p->sched_class = &rt_sched_class;
+
 	else if (p->policy == 6)
 		p->sched_class = &grr_sched_class;
 	else

@@ -1,8 +1,10 @@
+
 /* W4118 grouped round robin scheduler */
 /* Includes */
 /*****************************************************************************/
 #include "sched.h"
 #include <linux/slab.h>
+#include <linux/nmi.h>
 
 /* Defines */
 /*****************************************************************************/
@@ -11,6 +13,9 @@
 #else
 	#define PRINTK(...) do{}while(0)
 #endif
+
+//#undef M_GRR_REBALANCE
+//#define M_GRR_REBALANCE 100*45
 
 #define BOOL	int
 #define	M_TRUE	1
@@ -58,6 +63,24 @@ static void grr_reset_se(struct sched_grr_entity *grr_se)
 {
 	grr_se->m_time_slice = M_GRR_TIMESLICE;
 	grr_se->m_is_timeup = M_FALSE;
+}
+
+static void watchdog(struct rq *rq, struct task_struct *p)
+{
+	unsigned long soft, hard;
+
+	/* max may change after cur was read, this will be fixed next tick */
+	soft = task_rlimit(p, RLIMIT_RTTIME);
+	hard = task_rlimit_max(p, RLIMIT_RTTIME);
+
+	if (soft != RLIM_INFINITY) {
+		unsigned long next;
+
+		p->rt.timeout++;
+		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
+		if (p->rt.timeout > next)
+			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
+	}
 }
 
 /* Not necessary - just leave this */
@@ -220,7 +243,7 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 	struct rq *least_busiest = NULL;
 	struct rq *rq;
 
-	unsigned long min_load = 0xffffffff;
+	unsigned long min_load = 0xdeadbeef;
 	int i;
 
 #if 0
@@ -252,7 +275,6 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 * Ignore idle CPU to steal task from other CPU. 
 * Ignore group concept.
 */
-
 static int grr_load_balance(struct rq *this_rq)
 {
 	struct rq *busiest_rq;
@@ -261,68 +283,67 @@ static int grr_load_balance(struct rq *this_rq)
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
+	int this_cpu = this_rq->cpu;
 	unsigned long flags;
 
 	cpumask_copy(cpus, cpu_active_mask);
-
-	/* @lfred: why lock ? */
-    	//grr_lock(&this_rq->grr);
-
+	
 	target_rq = grr_find_least_busiest_queue(cpus);
 	busiest_rq = grr_find_busiest_queue(cpus);
+	
 	if (target_rq == NULL || busiest_rq == NULL)
-		goto __do_nothing__;
+		return is_task_moved;
+	
+	/*********************************************************************/
+	double_lock_balance(busiest_rq, target_rq);
 	
 	/* @lfred: if I am not the busiest, just go away. */
 	if (busiest_rq != this_rq)
 		goto __do_nothing__;
 
-	if (busiest_rq == target_rq)
+	if (busiest_rq->grr.m_nr_running == target_rq->grr.m_nr_running)
 		goto __do_nothing__;
 
-	/* get least and most busiest queue */
-	PRINTK("I am doing load balancing0!!\n");
-	
-	/*********************************************************************/
-	local_irq_save(flags);
-	double_rq_lock(busiest_rq, target_rq);
+	//printk ("@lfred: target_rq  = %d, ntask = %ld\n", target_rq->cpu,  target_rq->grr.m_nr_running);
+	//printk ("@lfred: busiest_rq = %d, ntask = %ld\n", busiest_rq->cpu, busiest_rq->grr.m_nr_running);
 
+#if 1
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
-	PRINTK("nr_busiest:%d !!\n",nr_busiest);
-	PRINTK("nr_target:%d !!\n",nr_target);
-    	
+	
 	/* make sure load balance will not reverse */
     	if (nr_busiest > 1 && nr_target + 1 < nr_busiest) {
+		
 		/* Here, we will do task moving */
-		PRINTK("I am doing load balancing1!!\n");
-		busiest_rq_task = pick_next_task_grr(busiest_rq);
-		dequeue_task_grr(busiest_rq, busiest_rq_task, 1);
-		enqueue_task_grr(target_rq, busiest_rq_task, 1);
-		PRINTK("I am doing load balancing2!!\n");
+		struct list_head *tlist = busiest_rq->grr.m_task_q.next->next;
+		busiest_rq_task = task_of_se(container_of(tlist, struct sched_grr_entity, m_rq_list));
+		
+		if (busiest_rq_task->policy != 6 || busiest_rq_task == busiest_rq->curr)
+			goto __do_nothing__;
 	
-		/* lock both RQs */
-		/* step 1: pick one task in the busiest rq	*/
-		/* step 2: test is_allowed_on_target_cpu 	*/
-		/* step 3: if step 2 is false, go to step 1.	*/
-		/* step 4: do the migration 			*/ 
-		/* unlock both RQs */
+		/* TODO: check if you can migrate or not */
+	
+		//printk("@lfred: pick %d from cpu %d to cpu %d\n", busiest_rq_task->pid, busiest_rq->cpu, target_rq->cpu);
 
-		is_task_moved = M_TRUE;
-        
-		/* unlock queues locked in find fucntions */ 
-		//grr_unlock(&busiest_rq->grr);
-        	//grr_unlock(&target_rq->grr);
-    	}
+		/* dequeue */
+		list_del(tlist);
+		busiest_rq->grr.m_nr_running--;	
+		dec_nr_running(busiest_rq);
 
-    	/* unlock this queue locked at first place */ 
-    	//grr_unlock(&this_rq->grr);
-	PRINTK("I am doing load balancing 3!!\n");
-	double_rq_unlock(busiest_rq, target_rq);
-	local_irq_restore(flags);
-	PRINTK("I am doing load balancing 4!!\n");
+		/* enqueue */
+		list_add_tail(tlist, &(target_rq->grr.m_task_q));
+		target_rq->grr.m_nr_running++;	
+		inc_nr_running(target_rq);	
+
+		set_task_cpu(busiest_rq_task, target_rq->cpu);
+				
+		/* return true flag */
+		is_task_moved = M_TRUE;    
+	}
+#endif
 
 __do_nothing__:
+	double_unlock_balance(busiest_rq, target_rq);
     	return is_task_moved;
 }
 
@@ -357,17 +378,13 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
 	/* handle the case when rebalance is on */
         if (rq->grr.m_need_balance) {
-		
-		PRINTK("I am doing pre_schedule_grr\n");
                 
 		/* reset the rq variable */
 		rq->grr.m_need_balance = M_FALSE;
 		rq->grr.m_rebalance_cnt = M_GRR_REBALANCE;
 
-#if 1
                 /* take care of the rebalance here */
                 grr_load_balance(rq);
-#endif        
 	}
 }
 
@@ -381,6 +398,7 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 static void
 set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
 {
+#if 0
 	struct cpumask dstp;
 
 	cpumask_and(&dstp, &(t->cpus_allowed), mask);
@@ -392,6 +410,7 @@ set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
 	} else {
 		/* We have CPU to run.  */
 	}
+#endif
 }
 
 #endif /* CONFIG_SMP */
@@ -575,6 +594,8 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct sched_grr_entity *se = &curr->grr;
 	BOOL need_resched = M_FALSE;
+
+	/* reset watchdog */
 
 #ifdef CONFIG_SMP
 	/* Update statistics */
