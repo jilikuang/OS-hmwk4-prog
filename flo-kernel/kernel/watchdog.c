@@ -26,7 +26,7 @@
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
 
-int watchdog_enabled = 1;
+int watchdog_enabled = 0;
 int __read_mostly watchdog_thresh = 10;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -465,9 +465,12 @@ static int watchdog_enable(int cpu)
 		per_cpu(softlockup_watchdog, cpu) = p;
 		wake_up_process(p);
 	}
-#endif
 out:
 	return err;
+#else
+	return -1;
+#endif
+
 }
 
 static void watchdog_disable(int cpu)
@@ -501,6 +504,7 @@ static void watchdog_enable_all_cpus(void)
 
 	watchdog_enabled = 0;
 
+#if 0
 	for_each_online_cpu(cpu)
 		if (!watchdog_enable(cpu))
 			/* if any cpu succeeds, watchdog is considered
@@ -509,7 +513,7 @@ static void watchdog_enable_all_cpus(void)
 
 	if (!watchdog_enabled)
 		pr_err("failed to be enabled on some cpus\n");
-
+#endif
 }
 
 static void watchdog_disable_all_cpus(void)
