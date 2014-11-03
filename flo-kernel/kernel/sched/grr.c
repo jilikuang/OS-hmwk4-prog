@@ -62,24 +62,6 @@ static void grr_reset_se(struct sched_grr_entity *grr_se)
 	grr_se->m_is_timeup = M_FALSE;
 }
 
-static void watchdog(struct rq *rq, struct task_struct *p)
-{
-	unsigned long soft, hard;
-
-	/* max may change after cur was read, this will be fixed next tick */
-	soft = task_rlimit(p, RLIMIT_RTTIME);
-	hard = task_rlimit_max(p, RLIMIT_RTTIME);
-
-	if (soft != RLIM_INFINITY) {
-		unsigned long next;
-
-		p->rt.timeout++;
-		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
-		if (p->rt.timeout > next)
-			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
-	}
-}
-
 /* Not necessary - just leave this */
 static void grr_set_running_cpu(struct sched_grr_entity *grr_se, struct rq *rq)
 {
@@ -347,6 +329,7 @@ static int grr_load_balance(struct rq *this_rq)
 	if (target_rq == NULL || busiest_rq == NULL)
 		return is_task_moved;
 	
+	printk("@lfred: doing load_balance @ cpu %d\n", this_rq->cpu);
 	/*********************************************************************/
 	double_lock_balance(busiest_rq, target_rq);
 	
@@ -391,6 +374,7 @@ static int grr_load_balance(struct rq *this_rq)
 
 __do_nothing__:
 	double_unlock_balance(busiest_rq, target_rq);
+	printk("@lfred: complete load_balance @ cpu %d\n", this_rq->cpu);
     	return is_task_moved;
 }
 
@@ -669,8 +653,10 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct sched_grr_entity *se = &curr->grr;
 	BOOL need_resched = M_FALSE;
-
-	/* reset watchdog */
+	
+	/* if not my task, we have to go away */
+	if (curr->policy != SCHED_GRR)
+		goto __grr_tick_end__;
 
 #ifdef CONFIG_SMP
 	/* Update statistics */
@@ -681,9 +667,6 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 		need_resched = M_TRUE;
 	}
 #endif
-
-	if (curr->policy != SCHED_GRR)
-		goto __grr_tick_end__;
 	
 	/* @lfred:
 		not sure if there is a chance that tick twice 
