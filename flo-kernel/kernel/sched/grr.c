@@ -200,6 +200,9 @@ static int task_is_valid_on_cpu(struct task_struct *p, int cpu)
 	return retval;
 }
 
+struct list_head grr_grp_mq;
+DEFINE_SPINLOCK(grr_grp_mq_lock);
+
 /* SMP Load balancing things */
 /*****************************************************************************/
 #ifdef CONFIG_SMP

@@ -6991,6 +6991,9 @@ int in_sched_functions(unsigned long addr)
 struct task_group root_task_group;
 #endif
 
+extern struct list_head grr_grp_mq;
+extern spinlock_t grr_grp_mq_lock;
+
 DECLARE_PER_CPU(cpumask_var_t, load_balance_tmpmask);
 
 void __init sched_init(void)
@@ -7050,6 +7053,10 @@ void __init sched_init(void)
 	cpu_grp.fg_cpu_end = 1;
 	cpu_grp.bg_cpu_start = 2;
 	write_unlock(&cpu_grp.lock);
+
+	spin_lock(&grr_grp_mq_lock);
+	INIT_LIST_HEAD(&grr_grp_mq);
+	spin_unlock(&grr_grp_mq_lock);
 
 	tg_sys = &root_task_group;
 
