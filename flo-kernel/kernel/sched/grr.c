@@ -269,6 +269,34 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 	return least_busiest;
 }
 
+/* TODO */
+/* implement the check if we need to rebalance */
+static BOOL can_we_balance_on_the_cpu(struct sched_group *sg, int cpu)
+{
+	struct cpumask *sg_cpus, *sg_mask;
+	int cpu, balance_cpu = -1;
+
+	sg_cpus = sched_group_cpus(sg);
+	sg_mask = sched_group_mask(sg);
+
+	/* Try to find first idle cpu */
+	if (cpumask_test_cpu(cpu, sg_mask))
+		return M_TRUE;
+         
+	return M_FALSE;
+}
+
+/* TODO */
+/* pick one of the eligible task from the source q to move */
+static struct task_struct *pick_eligible_task(
+	struct rq *src_rq,
+	struct sched_group *sg,
+	int dst_cpu) 
+{
+	//can_we_balance_on_the_cpu();
+	return NULL;
+}
+
 /*
 * Whenever, it is time to do load balance, this function will be called.
 * The fuction will get the busiest queue's next eligble task,
@@ -289,6 +317,11 @@ static int grr_load_balance(struct rq *this_rq)
 	unsigned long flags;
 
 	cpumask_copy(cpus, cpu_active_mask);
+
+	if (!rcu_dereference_sched(this_rq->sd)) {
+		printk("@lfred: zero domain, no load offloading\n");
+		return is_task_moved;
+	}
 	
 	target_rq = grr_find_least_busiest_queue(cpus);
 	busiest_rq = grr_find_busiest_queue(cpus);
@@ -308,7 +341,9 @@ static int grr_load_balance(struct rq *this_rq)
 
 	//printk ("@lfred: target_rq  = %d, ntask = %ld\n", target_rq->cpu,  target_rq->grr.m_nr_running);
 	//printk ("@lfred: busiest_rq = %d, ntask = %ld\n", busiest_rq->cpu, busiest_rq->grr.m_nr_running);
-
+	
+	// TO enable
+	//pick_eligible_task ();
 #if 1
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
@@ -337,7 +372,9 @@ static int grr_load_balance(struct rq *this_rq)
 		target_rq->grr.m_nr_running++;	
 		inc_nr_running(target_rq);	
 
+		/* moving a task */
 		set_task_cpu(busiest_rq_task, target_rq->cpu);
+		check_preempt_curr(target_rq, busiest_rq_task, 0);
 				
 		/* return true flag */
 		is_task_moved = M_TRUE;    
