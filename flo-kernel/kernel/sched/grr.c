@@ -619,8 +619,35 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 			break;
 		}
 	}*/
-	if (is_on_grr_rq(&prev->grr))
+	if (is_on_grr_rq(&prev->grr)) {
+#if 0
+		if (!task_is_valid_on_cpu(prev, rq->cpu)) {
+			struct rq *target_rq;
+			/*TPRINTK("remove %d from %d to mq\n",
+					prev->pid,
+					rq->cpu);*/
+			//dequeue_task_grr(rq, prev, 0);
+			deactivate_task(rq, prev, 0);/*
+			spin_lock(&grr_grp_mq_lock);
+			list_add_tail(t, &grr_grp_mq);
+			spin_unlock(&grr_grp_mq_lock);*/
+			if (!is_tg_bg(task_group(prev))) {
+				target_rq = cpu_rq(0);
+			} else {
+				target_rq = cpu_rq(nr_cpu_ids - 1);
+			}
+			double_lock_balance(rq, target_rq);
+			set_task_rq(prev, target_rq->cpu);
+			activate_task(target_rq, prev, 0);
+			wake_up_idle_cpu(target_rq->cpu);
+			double_unlock_balance(rq, target_rq);
+		} else {
+			list_move_tail(t, taskq);
+		}
+#else
 		list_move_tail(t, taskq);
+#endif
+	}
 
 	grr_unlock(&rq->grr);
 	/* out of critical section */
