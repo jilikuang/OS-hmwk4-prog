@@ -346,8 +346,6 @@ static int grr_load_balance(struct rq *this_rq)
 	struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
     	BOOL is_task_moved = M_FALSE;
 	int nr_busiest = 0, nr_target = 0;	
-	int this_cpu = this_rq->cpu;
-	unsigned long flags;
 	struct list_head *tlist = NULL;
 
 	cpumask_copy(cpus, cpu_active_mask);
@@ -455,8 +453,33 @@ static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 
 static int
 select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
-{	
-	return task_cpu(p);
+{
+        int cpu_picked = task_cpu(p);
+        unsigned long min_load = 0xdeadbeef;
+        struct rq* rq;
+        int i;
+        struct cpumask *cpus = __get_cpu_var(g_grr_load_balance_tmpmask);
+        cpumask_copy(cpus, cpu_active_mask);
+
+#if 0
+    /* case for handle group */
+#else
+        for_each_cpu(i, cpus) {
+                unsigned long curr_load;
+
+                if (!cpumask_test_cpu(i, cpus))
+                        continue;
+
+                rq = cpu_rq(i);
+                curr_load = rq->grr.m_nr_running;
+
+                if (curr_load < min_load && task_is_valid_on_cpu(p, i)){
+                        min_load = curr_load;
+                        cpu_picked = i;
+                }
+        }
+#endif
+        return cpu_picked;
 }
 
 /* TODO: should we manage the re-schedule? */
