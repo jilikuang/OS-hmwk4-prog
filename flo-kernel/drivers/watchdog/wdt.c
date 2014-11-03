@@ -272,6 +272,7 @@ static void wdt_decode_501(int status)
 
 static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 {
+#if 0
 	/*
 	 *	Read the status register see what is up and
 	 *	then printk it.
@@ -303,6 +304,7 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 #endif
 	}
 	spin_unlock(&wdt_lock);
+#endif
 	return IRQ_HANDLED;
 }
 
