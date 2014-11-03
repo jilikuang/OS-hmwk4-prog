@@ -154,6 +154,7 @@ static int watchdog_set_ipc(int soft_threshold, int threshold)
 /* timer interrupt handler */
 static irqreturn_t watchdog_timer_interrupt(int irq, void *dev_id)
 {
+#if 0
 	int int_status;
 	int_status = ioread32(watchdog_device.timer_interrupt_status_addr);
 
@@ -178,6 +179,7 @@ static irqreturn_t watchdog_timer_interrupt(int irq, void *dev_id)
 	/* allow the timer to run */
 	iowrite32(0x00000003, watchdog_device.timer_control_addr);
 
+#endif
 	return IRQ_HANDLED;
 }
 

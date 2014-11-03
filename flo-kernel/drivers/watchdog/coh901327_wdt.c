@@ -209,6 +209,7 @@ static unsigned int coh901327_gettimeleft(struct watchdog_device *wdt_dev)
  */
 static irqreturn_t coh901327_interrupt(int irq, void *data)
 {
+#if 0
 	u16 val;
 
 	/*
@@ -229,6 +230,7 @@ static irqreturn_t coh901327_interrupt(int irq, void *data)
 	writew(0x0000U, virtbase + U300_WDOG_IMR);
 	clk_disable(clk);
 	dev_crit(parent, "watchdog is barking!\n");
+#endif
 	return IRQ_HANDLED;
 }
 

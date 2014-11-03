@@ -164,6 +164,7 @@ static void eurwdt_activate_timer(void)
 
 static irqreturn_t eurwdt_interrupt(int irq, void *dev_id)
 {
+#if 0
 	pr_crit("timeout WDT timeout\n");
 
 #ifdef ONLY_TESTING
@@ -171,6 +172,7 @@ static irqreturn_t eurwdt_interrupt(int irq, void *dev_id)
 #else
 	pr_crit("Initiating system reboot\n");
 	emergency_restart();
+#endif
 #endif
 	return IRQ_HANDLED;
 }

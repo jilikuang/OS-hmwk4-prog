@@ -300,6 +300,7 @@ static int wdtpci_get_temperature(int *temperature)
 
 static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 {
+#if 0
 	/*
 	 *	Read the status register see what is up and
 	 *	then printk it.
@@ -340,6 +341,8 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 #endif
 	}
 	spin_unlock(&wdtpci_lock);
+
+#endif
 	return IRQ_HANDLED;
 }
 

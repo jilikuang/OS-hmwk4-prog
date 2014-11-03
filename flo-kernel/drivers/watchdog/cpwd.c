@@ -351,6 +351,7 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 
 static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
 {
+#if 0
 	struct cpwd *p = dev_id;
 
 	/* Only WD0 will interrupt-- others are NMI and we won't
@@ -362,6 +363,7 @@ static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
 	p->devs[WD0_ID].runstatus |=  WD_STAT_SVCD;
 
 	spin_unlock_irq(&p->lock);
+#endif
 
 	return IRQ_HANDLED;
 }
