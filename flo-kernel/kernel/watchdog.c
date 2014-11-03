@@ -321,7 +321,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
  */
 static int watchdog(void *unused)
 {
-	struct sched_param param = { .sched_priority = 0 };
+	struct sched_param param = { .sched_priority = 15 };
 	struct hrtimer *hrtimer = &__raw_get_cpu_var(watchdog_hrtimer);
 
 	/* initialize timestamp */
@@ -354,7 +354,9 @@ static int watchdog(void *unused)
 	 * scheduling latency spike.
 	 */
 	__set_current_state(TASK_RUNNING);
-	sched_setscheduler(current, SCHED_NORMAL, &param);
+
+	/* @lfred: change watch dog priority */
+	sched_setscheduler(current, SCHED_FIFO, &param);
 	return 0;
 }
 
