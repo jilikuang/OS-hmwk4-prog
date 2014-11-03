@@ -14,10 +14,13 @@
 	#define PRINTK(...) do{}while(0)
 #endif
 
+#define GRR_DEBUG
 #define BOOL	int
 #define	M_TRUE	1
 #define M_FALSE	0
 
+#define check_rq_size(rq) \
+		check_rq_size_func(rq,__func__)
 /* Prototypes */
 /*****************************************************************************/
 #ifdef CONFIG_SMP
@@ -35,22 +38,33 @@ DEFINE_PER_CPU(cpumask_var_t, g_grr_load_balance_tmpmask);
 /*****************************************************************************/
 static inline int count_rq_size(struct rq *rq)
 {
-	int cnt = 0
+	int cnt = 0;
+
+#ifdef GRR_DEBUG
 	struct list_head *pos = NULL;
-	list_for_each(pos, &(rq->grr.m_rq_list)) {
+	list_for_each(pos, &(rq->grr.m_task_q)) {
 		cnt++;
 	}
+#endif
 
 	return cnt;
 }
 
 /* debugging function: check the grr.m_nr_running is correct */
-static inline BOOL check_rq_size(struct rq *rq)
+static inline BOOL check_rq_size_func(struct rq *rq, char const* func)
 {
-	if (count_rq_size(rq) == rq->grr.m_nr_running)
+#ifdef GRR_DEBUG
+	if (count_rq_size(rq) == rq->grr.m_nr_running) {
+		printk("@lfred: check_rq_size passed @ %s\n", func);
 		return M_TRUE;
-	else
+	} else {
+		printk("@lfred: check_rq_size failed @ %s\n", func);
+		BUG();
 		return M_FALSE;
+	}
+#else
+	return M_TRUE;
+#endif
 }
 
 static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
@@ -488,6 +502,8 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	list_add_tail(&(p->grr.m_rq_list), &(rq->grr.m_task_q));
 	rq->grr.m_nr_running++;	
 
+	check_rq_size(rq);
+
 	grr_unlock(&rq->grr);
 	/* out of critical section */	
 
@@ -508,6 +524,8 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	list_del_init(&(p->grr.m_rq_list));
 	rq->grr.m_nr_running--;	
 
+	check_rq_size(rq);
+	
 	grr_unlock(&rq->grr);
 	/* out of critical section */	
 	
@@ -590,6 +608,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 		grr_set_running_cpu (&(p->grr), rq);
 	}
 
+	check_rq_size(rq);
 	grr_unlock(&rq->grr);
 	/* out of critical section */
 
@@ -657,6 +676,7 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *prev)
 #endif
 	}
 
+	check_rq_size(rq);
 	grr_unlock(&rq->grr);
 	/* out of critical section */
 }
@@ -718,6 +738,7 @@ __grr_tick_end__:
 	if (need_resched)
 		set_tsk_need_resched(curr);
 
+	check_rq_size(rq);
 	return;
 }
 
@@ -737,6 +758,7 @@ void task_fork_grr (struct task_struct *p) {
 static void set_curr_task_grr(struct rq *rq)
 {
 	/* add to the queue, and increment the count */	
+	check_rq_size(rq);
 }
 
 /*
@@ -751,6 +773,7 @@ static void switched_to_grr(struct rq *rq, struct task_struct *p)
 	/* reset grr related fields */
         grr_reset_se(&(p->grr));
         p->grr.m_cpu_history = 0;
+	check_rq_size(rq);
 	return;
 }
 
@@ -763,6 +786,7 @@ static void switched_to_grr(struct rq *rq, struct task_struct *p)
 static void
 prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
 {
+	check_rq_size(rq);
 	return;
 }
 
