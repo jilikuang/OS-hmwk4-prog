@@ -61,7 +61,7 @@ static unsigned int msm_wdog_irq;
  * msm_watchdog.enable=1 to enable the watchdog
  * By default watchdog is turned on
  */
-static int enable = 1;
+static int enable = 0;
 module_param(enable, int, 0);
 
 /*
@@ -281,10 +281,12 @@ static void pet_watchdog_work(struct work_struct *work)
 
 static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 {
-#if 0
+#if 1
 	unsigned long nanosec_rem;
 	unsigned long long t = sched_clock();
 	struct task_struct *tsk;
+	
+	printk ("@lfred: wdog_bark_handler\n");
 
 	nanosec_rem = do_div(t, 1000000000);
 	printk(KERN_INFO "Watchdog bark! Now = %lu.%06lu\n", (unsigned long) t,
