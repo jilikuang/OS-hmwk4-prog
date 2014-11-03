@@ -438,10 +438,11 @@ static int watchdog_enable(int cpu)
 {
 	struct task_struct *p = per_cpu(softlockup_watchdog, cpu);
 	int err = 0;
-
+	
+#if 0
 	/* enable the perf event */
 	err = watchdog_nmi_enable(cpu);
-
+	
 	/* Regardless of err above, fall through and start softlockup */
 
 	/* create the watchdog thread */
@@ -464,13 +465,14 @@ static int watchdog_enable(int cpu)
 		per_cpu(softlockup_watchdog, cpu) = p;
 		wake_up_process(p);
 	}
-
+#endif
 out:
 	return err;
 }
 
 static void watchdog_disable(int cpu)
 {
+#if 0
 	struct task_struct *p = per_cpu(softlockup_watchdog, cpu);
 	struct hrtimer *hrtimer = &per_cpu(watchdog_hrtimer, cpu);
 
@@ -488,6 +490,7 @@ static void watchdog_disable(int cpu)
 		per_cpu(softlockup_watchdog, cpu) = NULL;
 		kthread_stop(p);
 	}
+#endif
 }
 
 /* sysctl functions */
