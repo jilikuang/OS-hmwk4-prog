@@ -633,6 +633,7 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 	p->rt.rt_rq  = tg->rt_rq[cpu];
 	p->rt.parent = tg->rt_se[cpu];
 #endif
+
 /* CONFIG_GRR_GROUP_SCHED */
 	p->grr.grr_rq = tg->grr_rq[cpu];
 	p->grr.parent = tg->grr_se[cpu];

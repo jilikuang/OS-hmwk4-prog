@@ -7448,10 +7448,11 @@ void sched_move_task(struct task_struct *tsk)
 	rq = task_rq_lock(tsk, &flags);
 
 	running = task_current(rq, tsk);
-	on_rq = tsk->on_rq;
 
+	on_rq = tsk->on_rq;
 	if (on_rq)
 		dequeue_task(rq, tsk, 0);
+
 	if (unlikely(running))
 		tsk->sched_class->put_prev_task(rq, tsk);
 

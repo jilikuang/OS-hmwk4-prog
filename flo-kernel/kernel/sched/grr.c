@@ -105,7 +105,6 @@ static void grr_unlock(struct grr_rq *p_grr_rq)
 
 void free_grr_sched_group(struct task_group *tg)
 {
-#ifdef CONFIG_SMP
 	int i;
 
 	for_each_possible_cpu(i) {
@@ -117,10 +116,8 @@ void free_grr_sched_group(struct task_group *tg)
 
 	kfree(tg->grr_rq);
 	kfree(tg->grr_se);
-#endif
 }
 
-#ifdef CONFIG_SMP
 void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
 		struct sched_grr_entity *grr_se, int cpu,
 		struct sched_grr_entity *parent)
@@ -187,19 +184,6 @@ err_free_rq:
 err:
 	return 0;
 }
-#else
-void init_tg_grr_entry(struct task_group *tg, struct grr_rq *grr_rq,
-		struct sched_grr_entity *grr_se, int cpu,
-		struct sched_grr_entity *parent)
-{
-}
-
-int alloc_grr_sched_group(
-		struct task_group *tg, struct task_group *parent)
-{
-	return 1;
-}
-#endif
 
 /* SMP Load balancing things */
 /*****************************************************************************/
@@ -293,7 +277,9 @@ static struct task_struct *pick_eligible_task(
 	struct sched_group *sg,
 	int dst_cpu) 
 {
-	//can_we_balance_on_the_cpu();
+
+	//for_each_
+
 	return NULL;
 }
 
@@ -812,6 +798,7 @@ const struct sched_class grr_sched_class = {
 	.get_rr_interval	= get_rr_interval_grr,
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+	.task_move_group	= NULL,
 	/* void (*task_move_group) (struct task_struct *p, int on_rq); */
 #endif
 };
