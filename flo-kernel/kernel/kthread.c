@@ -204,7 +204,7 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 		 * The kernel thread should not inherit these properties.
 		 */
 
-#if 0
+#if 1
 		sched_setscheduler_nocheck(create.result, SCHED_NORMAL, &param);
 #else
 		sched_setscheduler_nocheck(create.result, 6, &param);
