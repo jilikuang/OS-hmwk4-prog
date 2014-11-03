@@ -281,6 +281,7 @@ static void pet_watchdog_work(struct work_struct *work)
 
 static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 {
+#if 0
 	unsigned long nanosec_rem;
 	unsigned long long t = sched_clock();
 	struct task_struct *tsk;
@@ -310,6 +311,7 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	}
 
 	panic("Apps watchdog bark received!");
+#endif
 	return IRQ_HANDLED;
 }
 
