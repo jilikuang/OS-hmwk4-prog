@@ -33,6 +33,26 @@ DEFINE_PER_CPU(cpumask_var_t, g_grr_load_balance_tmpmask);
 
 /* Utility functions */
 /*****************************************************************************/
+static inline int count_rq_size(struct rq *rq)
+{
+	int cnt = 0
+	struct list_head *pos = NULL;
+	list_for_each(pos, &(rq->grr.m_rq_list)) {
+		cnt++;
+	}
+
+	return cnt;
+}
+
+/* debugging function: check the grr.m_nr_running is correct */
+static inline BOOL check_rq_size(struct rq *rq)
+{
+	if (count_rq_size(rq) == rq->grr.m_nr_running)
+		return M_TRUE;
+	else
+		return M_FALSE;
+}
+
 static inline struct task_struct *task_of_se(struct sched_grr_entity *grr_se)
 {
 	return container_of(grr_se, struct task_struct, grr);
@@ -443,6 +463,10 @@ set_cpus_allowed_grr(struct task_struct *t, const struct cpumask *mask)
 	}
 #endif
 }
+ 
+static void task_waking_grr(struct task_struct *p)
+{
+}
 
 #endif /* CONFIG_SMP */
 
@@ -771,6 +795,7 @@ const struct sched_class grr_sched_class = {
 	.select_task_rq		= select_task_rq_grr,
 	.set_cpus_allowed	= set_cpus_allowed_grr, 
 
+	.task_waking		= task_waking_grr,
 #if 0
 	void (*post_schedule) (struct rq *this_rq);
 	void (*set_cpus_allowed)(struct task_struct*, const struct cpumask*);
