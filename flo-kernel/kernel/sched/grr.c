@@ -253,6 +253,7 @@ static struct rq * grr_find_least_busiest_queue(const struct cpumask *cpus)
 	return least_busiest;
 }
 
+#if 0
 /* TODO */
 /* implement the check if we need to rebalance */
 static BOOL can_we_balance_on_the_cpu(struct sched_group *sg, int cpu)
@@ -269,6 +270,7 @@ static BOOL can_we_balance_on_the_cpu(struct sched_group *sg, int cpu)
          
 	return M_FALSE;
 }
+#endif
 
 /* TODO */
 /* pick one of the eligible task from the source q to move */
@@ -287,7 +289,7 @@ static struct task_struct *pick_eligible_task(
 		if (tsk == src_rq->curr || tsk->policy != 6)
 			continue;	
 	
-		if (cpumask_test_cpu(dst_cpu, tsk->cpus_allowed)) {
+		if (cpumask_test_cpu(dst_cpu, &(tsk->cpus_allowed))) {
  			printk ("@lfred: tsk %d is selected\n", tsk->pid);
 			return tsk;
 		}
@@ -338,11 +340,7 @@ static int grr_load_balance(struct rq *this_rq)
 
 	if (busiest_rq->grr.m_nr_running == target_rq->grr.m_nr_running)
 		goto __do_nothing__;
-
-	//printk ("@lfred: target_rq  = %d, ntask = %ld\n", target_rq->cpu,  target_rq->grr.m_nr_running);
-	//printk ("@lfred: busiest_rq = %d, ntask = %ld\n", busiest_rq->cpu, busiest_rq->grr.m_nr_running);
 	
-	// TO enable
 	nr_busiest = busiest_rq->grr.m_nr_running;	
 	nr_target = target_rq->grr.m_nr_running;
 	
@@ -354,6 +352,8 @@ static int grr_load_balance(struct rq *this_rq)
 
 		if (busiest_rq_task == NULL)
 			goto __do_nothing__;		
+
+		tlist = &(busiest_rq_task->grr.m_rq_list);
 
 		/* dequeue */
 		list_del(tlist);
